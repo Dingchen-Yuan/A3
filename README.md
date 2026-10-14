@@ -1,121 +1,79 @@
-# Anko Mix-Lock
+# Kmart Delivery Assist
 
-Deferred colour and size allocation for Kmart Anko. Buying commits total volume at Gate 1, then locks the variant mix once early sell-through is in, and writes that split back to SAP S/4HANA.
+Customer delivery tracking and recovery for Kmart Group. A customer can see where an order is, understand a delay or a damaged delivery, choose what to do, follow the recovery, and finish a refund or replacement.
 
-The app is a working buyer workflow: review the demand signal, adjust the suggested mix, confirm the lock, and keep an audit of the SAP request. Writes default to simulation because the sandbox is read-only. The payload is the same one a production S/4HANA system would accept.
+This is the approved prototype for the exception-recovery goal. The wider fulfilment programme in the consulting proposal stays in place. This app is the part a customer can use now.
 
-## What it does
+## The journey
 
-Anko lines are often committed as a single bulk quantity before colour and size demand is known. An even split across variants leaves slow sellers to be marked down and fast sellers to stock out.
+1. Track my order
+2. Understand what is happening
+3. Identify a delivery problem
+4. Choose what to do
+5. Track the recovery
+6. Complete refund or replacement
 
-Mix-Lock closes that gap:
+Open an order that already has a problem, or report one from an order that is still on the way.
 
-1. Read the open purchase order and the committed quantity.
-2. Weight each colour and size by three weeks of trial-store sell-through.
-3. Propose a case-pack allocation that still adds up to the committed volume.
-4. Let the buyer adjust the mix before it is locked.
-5. Post variant lines onto the purchase order, or save that request locally in simulation.
+## Run
 
-## Workflow
-
-| Step | Screen | Outcome |
-| --- | --- | --- |
-| 1 | Dashboard | Lines awaiting a lock, share already locked, and markdown exposure of an even split versus the suggested mix |
-| 2 | Review signal | Purchase order, committed quantity, and sell-through by colour and size |
-| 3 | Adjust mix | Suggested quantities, editable before confirmation, held to case packs |
-| 4 | Confirm mix lock | Variant split sent through the SAP write adapter |
-| — | History | Saved simulate and live write requests |
-
-## Allocation rules
-
-The suggestion in `public/allocation.js` follows four rules:
-
-- Share committed units in proportion to the sell-through signal.
-- Give every variant at least 5% of committed volume, rounded up to whole case packs (minimum one pack).
-- Round each variant to the line’s case pack.
-- Shift the remainder onto the largest variant so the total still equals the committed quantity.
-
-`tests/allocation.test.js` prints a worked example for the knit throw (1,368 units, pack of 12), including markdown exposure before and after the suggested mix.
-
-## SAP integration
-
-Purchase orders are read from SAP with items expanded (`/PurchaseOrder/{number}?$expand=_PurchaseOrderItem`). A successful read is cached in `data/sap_cache.json` and reused if the sandbox is unavailable.
-
-On confirm, the write adapter builds one purchase-order item per variant, starting at item 20, with plant `1710`, unit `PC`, and a schedule line. Two modes:
-
-| `SAP_WRITE_MODE` | Behaviour |
-| --- | --- |
-| `simulate` (default) | Builds the S/4HANA request and stores it in `data/sap_write_store.json`. Nothing is posted. |
-| `live` | Fetches a CSRF token, then posts each item to `/PurchaseOrder/{number}/_PurchaseOrderItem`. |
-
-Lock state for the UI is kept in `data/app_state.json`.
-
-## Run locally
-
-Node.js 18 or later (the server uses the built-in `fetch`).
+Node.js 18 or later.
 
 ```bash
-cd "INFOSYS704 A3"
 node server.js
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Optional `.env` in the same directory (this file is not committed):
+Demo orders:
+
+| Order | What the customer sees | Use it to show |
+| --- | --- | --- |
+| `KM185002` | ANKO storage box delivered damaged | Replacement, or a refund of $18, not the whole $30 order |
+| `KM184773` | Lamp delivery attempted, no one home | Redeliver, collect from Kmart Broadway, or refund |
+| `KM184920` | Knit throw out for delivery | A healthy order, plus “Something’s wrong” |
+
+Ninety-second path: open `KM185002`, read the problem, keep the recommended replacement, check for an update until the case is ready, then confirm. The SAP service request is on the last screen.
 
 ```bash
-SAP_BASE_URL=https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_PURCHASEORDER_PROCESS_SRV
-SAP_API_KEY=your-api-key
+node tests/recovery.test.js
+```
+
+Reset every demo case:
+
+```bash
+curl -X POST http://localhost:3000/api/reset
+```
+
+## SAP fit
+
+Option 2. The API pool partly fits, so the wrapper and the customer surface changed. The business goal did not.
+
+| Job | API | What the prototype does |
+| --- | --- | --- |
+| See the order | `API_SALES_ORDER_SRV` | Sales order on every screen |
+| See the shipment | `API_OUTBOUND_DELIVERY_SRV` | Outbound delivery number and the journey |
+| See the movement | `CE_FREIGHTORDER_0001` | Freight order and the delivery events |
+| Open the case | `OP_API_SERVICE_REQUEST_SRV_0001` | Create, then complete, a service request |
+| Take the money | `API_BILLING_DOCUMENT_REQUEST_SRV` | Not used to create a refund. That API can read, reject or delete a billing document. The refund is confirmed here and linked to the sales order. |
+
+Without `SAP_BASE_URL` and `SAP_API_KEY`, reads use the prototype orders and writes are stored as the service-request body. Set `SAP_WRITE_MODE=live` to post that body. A numeric sales order that is not in the demo list is read from `API_SALES_ORDER_SRV` when those variables are set.
+
+```bash
+SAP_BASE_URL=https://sandbox.api.sap.com/s4hanacloud
+SAP_API_KEY=your-key
 SAP_WRITE_MODE=simulate
 PORT=3000
 ```
 
-Environment variables override `.env`. Without a base URL and key, previously cached purchase orders still load and new locks stay in simulation.
+## What changed from the proposal
 
-Check the allocator:
+The proposal’s first build was the internal decision foundation, then basket-aware routing. Those stay later work: routing automation is high impact and high effort, and the API pool has no order-management routing service.
 
-```bash
-node tests/allocation.test.js
-```
+Delivery Assist is the high-impact step that the pool can support. The customer no longer pieces together a carrier page and a phone call. One Kmart journey covers the sales order, the delivery, the freight order and the service request.
 
-Reset demo locks and the write history:
+The AS-IS customer path is a carrier status page, then the contact centre, then a separate refund. The TO-BE path is the six steps above, closed by one service request.
 
-```bash
-curl -X POST http://localhost:3000/api/reset-state
-```
+## Pitch
 
-## HTTP API
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/config` | Active write mode and SAP base URL |
-| `GET` | `/api/lines` | Anko lines with SAP purchase-order data and lock status |
-| `GET` | `/api/lines/:id` | One line |
-| `GET` | `/api/po/:poNumber` | Purchase order, served from cache when SAP is unreachable |
-| `POST` | `/api/mixlock` | Lock a mix. Body: `lineId`, `poNumber`, `finalSplit`, `note`, `committedQty` |
-| `GET` | `/api/writes` | Saved SAP write requests |
-| `GET` | `/api/writes/:id` | One write request |
-| `POST` | `/api/reset-state` | Clear locks and write history |
-
-## Layout
-
-```
-INFOSYS704 A3/
-├── server.js                 HTTP server, SAP read, and write adapter
-├── public/
-│   ├── index.html            App shell
-│   ├── styles.css
-│   ├── app.js                Dashboard, review, adjust, confirm, history
-│   └── allocation.js         Signal-weighted, case-pack allocation
-├── data/
-│   ├── mockLines.js          Anko lines and sell-through signals
-│   ├── app_state.json        Which lines are mix-locked
-│   ├── sap_cache.json        Cached purchase orders
-│   └── sap_write_store.json  Saved write requests
-└── tests/
-    └── allocation.test.js    Worked allocation example
-```
-
-## Status
-
-Working prototype for the Anko deferred-mix decision. The buyer path from dashboard to confirmed lock is usable end to end. SAP writes stay in simulation unless `SAP_WRITE_MODE=live` is set against a system that accepts purchase-order changes.
+`pitch/Kmart-Delivery-Assist-Lab12.pptx` is the five-minute Managing Director pitch. Situation, complication and resolution come first. The groupwork disclaimer is the last slide. Add UPIs before upload, and confirm the contribution split with the group.
