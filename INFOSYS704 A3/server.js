@@ -125,8 +125,39 @@ function simplifyPO(po) {
   };
 }
 
+// Short-lived memory cache + small concurrency limit so a page load doesn't fire
+// a burst of parallel calls at the sandbox (which can get some of them rejected).
+const MEM_TTL_MS = 60000;
+const memCache = new Map();          // key -> { at, value }
+const inflight = new Map();          // key -> Promise
+let active = 0; const queue = [];
+function limit(fn) {
+  return new Promise((resolve, reject) => {
+    const run = () => { active++; fn().then(resolve, reject).finally(() => { active--; if (queue.length) queue.shift()(); }); };
+    if (active < 2) run(); else queue.push(run);
+  });
+}
+
+async function readPO(poNumber, opts = {}) {
+  const deep = !!opts.deep;
+  const now = Date.now();
+  // A deep read also satisfies a shallow request.
+  for (const key of deep ? [poNumber + '|deep'] : [poNumber + '|deep', poNumber + '|flat']) {
+    const hit = memCache.get(key);
+    if (hit && now - hit.at < MEM_TTL_MS) return hit.value;
+  }
+  const key = poNumber + (deep ? '|deep' : '|flat');
+  if (inflight.has(key)) return inflight.get(key);
+  const p = limit(() => readPOUncached(poNumber, { deep })).then(v => {
+    if (!v.cached) memCache.set(key, { at: Date.now(), value: v });
+    return v;
+  }).finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
 // Read a PO live (with optional deeper expand), fall back to the cached snapshot.
-async function readPO(poNumber, { deep = false } = {}) {
+async function readPOUncached(poNumber, { deep = false } = {}) {
   const cache = readJson(CACHE_FILE, { pos: {} });
   cache.pos = cache.pos || {};
   const expand = deep
@@ -151,8 +182,10 @@ async function readPO(poNumber, { deep = false } = {}) {
       return { sap: sp, cached: false, cachedAt: null };
     }
     lastSapStatus = { live: false, at: new Date().toISOString(), message: `SAP returned ${r.status}` };
+    console.warn(`[SAP] PO ${poNumber}${deep ? ' (deep)' : ''}: HTTP ${r.status} – using cached snapshot`);
   } catch (e) {
     lastSapStatus = { live: false, at: new Date().toISOString(), message: e.message };
+    if (SAP_KEY) console.warn(`[SAP] PO ${poNumber}${deep ? ' (deep)' : ''}: ${e.message} – using cached snapshot`);
   }
   if (cache.pos[poNumber]) return { sap: cache.pos[poNumber].sap, cached: true, cachedAt: cache.pos[poNumber].at };
   return { sap: null, cached: true, cachedAt: null };
