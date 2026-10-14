@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Anko Mix-Lock</title>
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="app-header">
+  <div class="brand"><span class="dot"></span> Anko Mix-Lock</div>
+  <nav style="display:flex;gap:12px;align-items:center;">
+    <a href="#/dashboard" style="color:#fff;text-decoration:none;font-size:13px;">Dashboard</a>
+    <a href="#/history" style="color:#fff;text-decoration:none;font-size:13px;">History</a>
+  </nav>
+  <div id="modeBadge" style="font-size:13px;opacity:.85;"></div>
+</header>
+<main id="app"><div class="empty"><span class="spinner"></span> Loading…</div></main>
+<div id="modalRoot"></div>
+<script src="/allocation.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+function variantList(line){
+  const out=[];
+  for(let ci=0;ci<line.colours.length;ci++){
+    for(let si=0;si<line.sizes.length;si++){
+      out.push({ colour: line.colours[ci], size: line.sizes[si], signal: (line.signal[ci]||[])[si]||0 });
+    }
+  }
+  return out;
+}
+
+function suggestAlloc(line, committed){
+  const pack=line.casePack||12;
+  const vars=variantList(line);
+  const n=vars.length;
+  let minUnits=Math.ceil((0.05*committed)/pack)*pack;
+  if(minUnits<pack) minUnits=pack;
+  if(n*minUnits>committed){ minUnits=pack; if(n*pack>committed) minUnits=0; }
+  const remaining=committed-n*minUnits;
+  const signals=vars.map(v=>Math.max(0.0001,v.signal));
+  const sumSig=signals.reduce((a,b)=>a+b,0);
+  const raw=signals.map(s=>(s/sumSig)*remaining);
+  const floors=raw.map(x=>Math.floor(x/pack)*pack);
+  let leftover=remaining-floors.reduce((a,b)=>a+b,0);
+  const remainders=raw.map((x,i)=>({i,r:x-floors[i]})).sort((a,b)=>b.r-a.r);
+  let i=0;
+  while(leftover>=pack){
+    const idx=remainders[i % remainders.length].i;
+    floors[idx]+=pack;
+    leftover-=pack;
+    i++;
+  }
+  if(leftover>0 && remainders[0]) floors[remainders[0].i]+=leftover;
+  const qtys=floors.map(f=>minUnits+f);
+  const sum=qtys.reduce((a,b)=>a+b,0);
+  if(sum!==committed && qtys.length){ qtys[qtys.length-1]+=(committed-sum); }
+  return vars.map((v,idx)=>Object.assign({},v,{qty:Math.max(0,qtys[idx])}));
+}
+function evenAlloc(line, committed){
+  const pack=line.casePack||12;
+  const vars=variantList(line);
+  const n=vars.length;
+  let base=Math.floor(committed/n/pack)*pack;
+  const arr=vars.map(()=>base);
+  let leftover=committed-base*n;
+  let i=0;
+  while(leftover>=pack){ arr[i % n]+=pack; leftover-=pack; i++; }
+  if(leftover>0 && arr.length) arr[0]+=leftover;
+  return vars.map((v,idx)=>Object.assign({},v,{qty:arr[idx]}));
+}
+function riskAmount(alloc, committed, line){
+  const totalSignal=alloc.reduce((s,v)=>s+v.signal,0);
+  const unitValue=line.unitPrice*(line.markdownPct||0.4);
+  let risk=0;
+  for(const v of alloc){
+    const ideal=totalSignal>0?(v.signal/totalSignal)*committed:committed/alloc.length;
+    const excess=v.qty-ideal;
+    if(excess>0) risk+=excess*unitValue;
+  }
+  return Math.round(risk);
+}
+
