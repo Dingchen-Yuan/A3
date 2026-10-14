@@ -4,7 +4,7 @@ const STEPS = [
   [3, 'Identify a delivery problem'],
   [4, 'Choose what to do'],
   [5, 'Track the recovery'],
-  [6, 'Complete refund or replacement']
+  [6, 'Complete refund/replacement']
 ];
 
 const view = document.querySelector('#view');
@@ -79,7 +79,7 @@ async function showHome(message) {
   paint(`
     <p class="kicker">Your orders</p>
     <h1>Track my order</h1>
-    <p class="lead">See where it is. If delivery goes wrong, choose what happens next.</p>
+    <p class="lead">See where your order is. If it is delayed or something has gone wrong, choose what to do, then finish with a refund or a replacement.</p>
     <form class="search" id="find">
       <label class="sr" for="q" style="position:absolute;left:-999px">Order number</label>
       <input id="q" name="q" inputmode="text" autocomplete="off" placeholder="Order or sales order number" />
@@ -187,6 +187,7 @@ function renderUnderstand(order) {
     document.querySelector('#report').innerHTML = `
       <h2 class="section-title">What went wrong?</h2>
       <div class="report">
+        <button class="btn secondary" type="button" data-code="DELAY">It’s delayed</button>
         <button class="btn secondary" type="button" data-code="FAILED_ATTEMPT">It hasn’t arrived</button>
         <button class="btn secondary" type="button" data-code="DAMAGED">Something arrived damaged</button>
         <button class="btn secondary" type="button" data-code="MISSING">An item is missing</button>

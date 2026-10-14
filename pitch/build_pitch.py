@@ -139,7 +139,7 @@ def build():
         "Identify the\nproblem",
         "Choose\nwhat to do",
         "Track the\nrecovery",
-        "Complete refund\nor replacement",
+        "Complete\nrefund/replacement",
     ]
     for i, label in enumerate(steps):
         left = Inches(0.5 + i * 2.12)

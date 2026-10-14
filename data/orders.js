@@ -63,6 +63,35 @@ const ORDERS = [
     summary: 'Delivery attempt failed'
   },
   {
+    id: 'KM184866',
+    salesOrder: '450188',
+    outboundDelivery: '80004220',
+    freightOrder: '61008640',
+    customer: 'Mia Brooks',
+    soldToParty: '1000388',
+    channel: 'Home delivery',
+    address: 'Parramatta NSW',
+    promise: 'Mon 13 Oct, by 6pm',
+    node: 'Moorebank fulfilment centre',
+    items: [
+      { sku: 'ANKO-TOWEL', name: 'ANKO Bath Towel', qty: 1, price: 16, damaged: false }
+    ],
+    events: [
+      { at: 'Sun 12 Oct, 6:15pm', title: 'Order placed', state: 'done' },
+      { at: 'Mon 13 Oct, 8:40am', title: 'Packed at the Moorebank fulfilment centre', state: 'done' },
+      { at: 'Mon 13 Oct, 11:10am', title: 'Handed to the carrier', state: 'done' },
+      { at: 'Tue 14 Oct, 4:00pm', title: 'Still on the way — a day past the promise', state: 'problem' }
+    ],
+    problem: {
+      code: 'DELAY',
+      title: 'This delivery is delayed',
+      detail: 'It was promised by 6pm on Monday and it is still with the carrier. You can see where it is, then finish with a refund or a replacement.',
+      foundAt: 'Tue 14 Oct, 4:00pm'
+    },
+    headline: 'Your towel is a day late',
+    summary: 'Delivery delayed'
+  },
+  {
     id: 'KM184920',
     salesOrder: '450241',
     outboundDelivery: '80004550',
@@ -88,6 +117,12 @@ const ORDERS = [
 ];
 
 const REPORTABLE = {
+  DELAY: {
+    code: 'DELAY',
+    title: 'This delivery is delayed',
+    detail: 'You told us this order is late. You can take a refund or a replacement.',
+    foundAt: 'Reported just now'
+  },
   FAILED_ATTEMPT: {
     code: 'FAILED_ATTEMPT',
     title: 'It has not arrived',

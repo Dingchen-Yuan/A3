@@ -8,6 +8,11 @@ assert.match(SALES_ORDER_PATH, /\$top=5/);
 assert.match(SALES_ORDER_PATH, /\$select=/);
 assert.match(SALES_ORDER_PATH, /\$expand=to_Item/);
 
+const delayed = findOrder('KM184866');
+const delayedOptions = recovery.optionsFor(delayed, delayed.problem);
+assert.deepStrictEqual(delayedOptions.map(option => option.id), ['replace', 'refund']);
+assert.strictEqual(delayedOptions.find(option => option.id === 'refund').amount, 16);
+
 const damaged = findOrder('KM185002');
 const missed = findOrder('KM184773');
 const healthy = findOrder('KM184920');

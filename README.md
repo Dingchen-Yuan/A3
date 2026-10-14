@@ -31,6 +31,7 @@ Demo orders:
 | --- | --- | --- |
 | `KM185002` | ANKO storage box delivered damaged | Replacement, or a refund of $18, not the whole $30 order |
 | `KM184773` | Lamp delivery attempted, no one home | Redeliver, collect from Kmart Broadway, or refund |
+| `KM184866` | Bath towel a day past the promise | A delay, then a refund of $16 or a replacement |
 | `KM184920` | Knit throw out for delivery | A healthy order, plus “Something’s wrong” |
 
 Ninety-second path: open `KM185002`, read the problem, keep the recommended replacement, check for an update until the case is ready, then confirm. The SAP service request is on the last screen.
