@@ -20,6 +20,7 @@
             "OrderQuantity": 171,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 335.24,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -30,6 +31,7 @@
             "OrderQuantity": 171,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 11.56,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -40,6 +42,7 @@
             "OrderQuantity": 171,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 28.9,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -50,6 +53,7 @@
             "OrderQuantity": 171,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 11.56,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -60,6 +64,7 @@
             "OrderQuantity": 171,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 46.24,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -70,6 +75,7 @@
             "OrderQuantity": 342,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 14.45,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -80,11 +86,12 @@
             "OrderQuantity": 171,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 115.6,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           }
         ]
       },
-      "at": "2026-10-13T23:39:14.957Z"
+      "at": "2026-10-14T00:44:56.072Z"
     },
     "4500207702": {
       "sap": {
@@ -106,6 +113,7 @@
             "OrderQuantity": 150,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 335.24,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -116,6 +124,7 @@
             "OrderQuantity": 150,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 11.56,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -126,6 +135,7 @@
             "OrderQuantity": 150,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 28.9,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -136,6 +146,7 @@
             "OrderQuantity": 150,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 11.56,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -146,6 +157,7 @@
             "OrderQuantity": 150,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 46.24,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -156,6 +168,7 @@
             "OrderQuantity": 300,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 14.45,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -166,11 +179,12 @@
             "OrderQuantity": 150,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 115.6,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           }
         ]
       },
-      "at": "2026-10-14T00:02:25.913Z"
+      "at": "2026-10-14T00:44:58.798Z"
     },
     "4500207758": {
       "sap": {
@@ -192,6 +206,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 17.16,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -202,6 +217,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 145.87,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -212,6 +228,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 2.86,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -222,6 +239,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 11.44,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -232,6 +250,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 42.9,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -242,6 +261,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 2.86,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -252,6 +272,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 20.02,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -262,6 +283,7 @@
             "OrderQuantity": 120,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 5.72,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -272,11 +294,12 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 31.46,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           }
         ]
       },
-      "at": "2026-10-13T23:39:15.806Z"
+      "at": "2026-10-14T00:44:56.976Z"
     },
     "4500207637": {
       "sap": {
@@ -298,6 +321,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 82.58,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -308,6 +332,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 68.82,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -318,6 +343,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 481.74,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -328,6 +354,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 27.53,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -338,6 +365,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 68.82,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -348,6 +376,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 275.28,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -358,6 +387,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 27.53,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -368,6 +398,7 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 110.11,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -378,6 +409,7 @@
             "OrderQuantity": 96,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 34.41,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -388,11 +420,12 @@
             "OrderQuantity": 48,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 165.17,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           }
         ]
       },
-      "at": "2026-10-13T23:39:16.245Z"
+      "at": "2026-10-14T00:44:57.434Z"
     },
     "4500207590": {
       "sap": {
@@ -414,6 +447,7 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 17.16,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -424,6 +458,7 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 145.87,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -434,6 +469,7 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 2.86,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -444,6 +480,7 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 11.44,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -454,6 +491,7 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 42.9,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -464,6 +502,7 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 2.86,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -474,6 +513,7 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 20.02,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -484,6 +524,7 @@
             "OrderQuantity": 84,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 5.72,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -494,11 +535,12 @@
             "OrderQuantity": 42,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 31.46,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           }
         ]
       },
-      "at": "2026-10-13T23:39:16.664Z"
+      "at": "2026-10-14T00:44:57.878Z"
     },
     "4500207586": {
       "sap": {
@@ -520,6 +562,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 17.16,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -530,6 +573,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 145.87,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -540,6 +584,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 2.86,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -550,6 +595,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 11.44,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -560,6 +606,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 42.9,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -570,6 +617,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 2.86,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -580,6 +628,7 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 20.02,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -590,6 +639,7 @@
             "OrderQuantity": 120,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 5.72,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           },
           {
@@ -600,11 +650,12 @@
             "OrderQuantity": 60,
             "PurchaseOrderQuantityUnit": "PC",
             "NetPriceAmount": 31.46,
+            "NetPriceQuantity": 1,
             "RequirementTracking": ""
           }
         ]
       },
-      "at": "2026-10-13T23:39:17.096Z"
+      "at": "2026-10-14T00:44:58.325Z"
     }
   }
 }

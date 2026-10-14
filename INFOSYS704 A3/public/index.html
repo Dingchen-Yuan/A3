@@ -3,20 +3,55 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Anko Mix-Lock</title>
+<title>Supply Hub · Kmart Group</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
 <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-<header class="app-header">
-  <div class="brand"><span class="dot"></span> Anko Mix-Lock</div>
-  <nav style="display:flex;gap:12px;align-items:center;">
-    <a href="#/dashboard" style="color:#fff;text-decoration:none;font-size:13px;">Dashboard</a>
-    <a href="#/history" style="color:#fff;text-decoration:none;font-size:13px;">History</a>
-  </nav>
-  <div id="modeBadge" style="font-size:13px;opacity:.85;"></div>
+<header class="topbar">
+  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Toggle navigation"></button>
+  <a class="brand" href="#/mixlock" aria-label="Supply Hub home">
+    <img class="brand-logo" src="/assets/kmart-logo.png" alt="Kmart" onerror="this.style.display='none';document.getElementById('brandMark').hidden=false;" />
+    <span class="brand-mark" id="brandMark" hidden>SH</span>
+    <span class="brand-divider"></span>
+    <span class="brand-text"><strong>Supply Hub</strong><span>Anko Buying &amp; Inbound Operations</span></span>
+  </a>
+  <div class="topbar-right">
+    <span class="chip chip-neutral" id="sapChip">SAP · connecting…</span>
+    <span class="chip chip-warn" id="modeChip">Writes simulated</span>
+    <span class="avatar" title="Anko Buyer – Homewares">AB</span>
+  </div>
 </header>
-<main id="app"><div class="empty"><span class="spinner"></span> Loading…</div></main>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <nav class="nav">
+      <div class="nav-label">Buying</div>
+      <a href="#/mixlock" data-nav="mixlock"></a>
+      <div class="nav-label">Inbound</div>
+      <a href="#/deliveries" data-nav="deliveries"></a>
+      <div class="nav-label">Audit</div>
+      <a href="#/history" data-nav="history"></a>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="link-btn" id="resetDemo"></button>
+      <p>Prototype · SAP S/4HANA Purchase Order API (sandbox). Writes are simulated.</p>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="crumbs" id="crumbs"></div>
+    <div id="app"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+  </main>
+</div>
+
 <div id="modalRoot"></div>
+<div id="toastRoot" class="toast-root" aria-live="polite"></div>
+
+<script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/allocation.js"></script>
 <script src="/app.js"></script>
 </body>
