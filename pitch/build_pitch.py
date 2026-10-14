@@ -60,7 +60,7 @@ def notes(slide, text):
     slide.notes_slide.notes_text_frame.text = text
 
 
-def chrome(slide, page, pages=9):
+def chrome(slide, page, pages=10):
     rect(slide, 0, 0, W, Inches(0.08), RED)
     add_text(slide, Inches(0.55), Inches(7.12), Inches(8), Inches(0.28),
              "Kmart Delivery Assist  ·  Managing Director", 12, MUTED)
@@ -153,13 +153,13 @@ def build():
     # 5 Why this solution
     s = new(prs)
     chrome(s, 5)
-    add_text(s, Inches(0.55), Inches(0.35), Inches(6), Inches(0.3), "WHY THIS SOLUTION", 14, RED, True)
-    add_text(s, Inches(0.55), Inches(0.7), Inches(12), Inches(0.7),
-             "High impact. Feasible on the APIs we have.", 28, INK, True)
+    add_text(s, Inches(0.55), Inches(0.35), Inches(8), Inches(0.3), "WHY THIS SOLUTION", 14, RED, True)
+    add_text(s, Inches(0.55), Inches(0.7), Inches(12), Inches(0.9),
+             "A2 chose the data foundation first.\nThis pool can run the customer recovery.", 28, INK, True)
     cells = [
-        (0, 0, PAPER, "Do later", "P1 routing automation\nHigh impact, high effort.\nAfter shadow evidence."),
-        (1, 0, RED, "Build now", "Delivery Assist\nHigh impact, lower effort.\nThe customer feels it."),
-        (0, 1, WHITE, "Leave", "Rebuild order management\nHigh effort, low extra impact."),
+        (0, 0, PAPER, "A2, do first", "P2 decision data\nWeighted 4.50.\nNeeds OMS, WMS, TMS and Finance."),
+        (1, 0, RED, "Prototype now", "Delivery Assist\nSame exception goal.\nSales order, delivery, freight, service request."),
+        (0, 1, WHITE, "A2, later", "P1 routing automation\nWeighted 4.10.\nOnly after shadow evidence."),
         (1, 1, PAPER, "Not enough", "A status page with no recovery\nLow effort, low impact."),
     ]
     for col, row, fill, kicker, body in cells:
@@ -170,14 +170,14 @@ def build():
         body_color = WHITE if fill == RED else INK
         add_text(s, left + Inches(0.3), top + Inches(0.2), Inches(5.3), Inches(0.35), kicker.upper(), 13, title_color, True)
         add_text(s, left + Inches(0.3), top + Inches(0.6), Inches(5.3), Inches(1.4), body, 20, body_color, True)
-    notes(s, "1:50 to 2:15. This is the effort-impact choice. We did not drop the proposal. Routing automation is still the later, heavier step. A status page does not recover the order. Rebuilding order management duplicates what SAP already holds. Delivery Assist is the step we can implement, and it is the step the customer feels. One breath, then design.")
+    notes(s, "1:50 to 2:20. Start from the A2 effort-impact result, do not invent a new winner. P2 scored 4.50 and stays the programme. P1 scored 4.10 and waits for shadow evidence. Say why the prototype is Delivery Assist: the API pool has no routing service and no cost dictionary, so the internal foundation cannot be built here. The pool can read the order journey and open a service request. That is the exception the customer feels. A status page with no choice does not recover it.")
 
     # 6 Design and the API change
     s = new(prs)
     chrome(s, 6)
-    add_text(s, Inches(0.55), Inches(0.35), Inches(8), Inches(0.3), "DESIGN  ·  WHAT CHANGED", 14, RED, True)
+    add_text(s, Inches(0.55), Inches(0.35), Inches(8), Inches(0.3), "DESIGN  ·  OPTION 3", 14, RED, True)
     add_text(s, Inches(0.55), Inches(0.7), Inches(12), Inches(0.6),
-             "Same goal. A customer surface the APIs can carry.", 26, INK, True)
+             "The solution changed. The new models are in the prototype.", 26, INK, True)
     stages = [
         ("Empathise", "A failed delivery is a dead end."),
         ("Define", "One job: see it, choose, finish."),
@@ -190,11 +190,38 @@ def build():
         add_text(s, Inches(0.55), top, Inches(2.3), Inches(0.5), name, 18, RED, True)
         add_text(s, Inches(2.9), top, Inches(4.3), Inches(0.5), line, 18, INK)
     rect(s, Inches(7.5), Inches(1.6), Inches(5.3), Inches(4.7), PAPER)
-    add_text(s, Inches(7.75), Inches(1.8), Inches(4.9), Inches(0.4), "SAP OPTION 2", 13, RED, True)
-    add_text(s, Inches(7.75), Inches(2.3), Inches(4.9), Inches(3.7),
-             "Fits\nSales order, outbound delivery, freight order, service request.\n\nChanged\nThe internal routing screen waits. This is the customer path.\n\nDoes not fit\nThe billing API cannot create a refund. We confirm it here and link the sales order.",
+    add_text(s, Inches(7.75), Inches(1.8), Inches(4.9), Inches(0.4), "NEW MODELS", 13, RED, True)
+    add_text(s, Inches(7.75), Inches(2.25), Inches(4.9), Inches(3.8),
+             "AS-IS\nCarrier page, then a phone call, then a separate refund queue.\n\nTO-BE\nOne Kmart journey. One service request.\n\nNot available\nThe billing API cannot create a refund. The app confirms it and links the sales order.",
              16, INK)
-    notes(s, "2:15 to 2:40. Design thinking in one pass: empathise, define, ideate, prototype, test. Then the API change, because this is option 2. Say plainly: we did not pretend the billing API creates a refund. It can read, reject or delete. The service request is the write. AS-IS is carrier page plus call centre. TO-BE is these six steps. Usability, if asked: status stays on screen, words are the customer's, choices are visible, a refund is confirmed twice, and a healthy order is not forced into a problem. That is Nielsen, applied, not recited. Switch to the app.")
+    notes(s, "2:20 to 2:45. This is option 3, not a small wrapper change. Name the five stages once: empathise, define, ideate, prototype, test. Then the models. AS-IS file is design/A3_AS-IS_Customer_Exception.bpmn. TO-BE file is design/A3_TO-BE_Delivery_Assist.bpmn. Say the billing API can read, reject or delete, and cannot create a refund. Do not claim a live refund posting. The write we do have is the service request.")
+
+    # 7 Usability heuristics
+    s = new(prs)
+    chrome(s, 7)
+    add_text(s, Inches(0.55), Inches(0.35), Inches(8), Inches(0.3), "EASE OF USE", 14, RED, True)
+    add_text(s, Inches(0.55), Inches(0.7), Inches(12), Inches(0.55),
+             "Nielsen’s ten heuristics, each tied to a screen.", 26, INK, True)
+    heuristics = [
+        ("1  Status", "Step x of 6 stays on screen."),
+        ("2  Real world", "“Track my order”, not SAP codes."),
+        ("3  Control", "Back, and start the order again."),
+        ("4  Consistency", "One button, one step pattern."),
+        ("5  Prevention", "A refund is named, then confirmed."),
+        ("6  Recognition", "Recent orders are visible."),
+        ("7  Flexibility", "Order number or sales order."),
+        ("8  Aesthetic", "One decision on each screen."),
+        ("9  Recovery", "A missing order says what to check."),
+        ("10  Help", "Each screen says what happens next."),
+    ]
+    for i, (title, body) in enumerate(heuristics):
+        col = i % 2
+        row = i // 2
+        left = Inches(0.55 + col * 6.3)
+        top = Inches(1.55 + row * 1.0)
+        add_text(s, left, top, Inches(2.4), Inches(0.7), title, 16, RED, True)
+        add_text(s, left + Inches(2.4), top, Inches(3.6), Inches(0.7), body, 16, INK)
+    notes(s, "2:45 to 3:05. Do not read all ten. Say: status stays visible, the words are the customer’s, a refund asks twice, and a healthy order is not forced into a problem. The other six are on the slide if asked. Then go to the app.")
 
     # 7 Demo
     s = new(prs, INK)
@@ -215,7 +242,7 @@ def build():
 
     # 8 Close
     s = new(prs)
-    chrome(s, 8)
+    chrome(s, 9)
     add_text(s, Inches(0.55), Inches(0.35), Inches(4), Inches(0.3), "THE ASK", 14, RED, True)
     add_text(s, Inches(0.55), Inches(0.8), Inches(12), Inches(1.2),
              "Use this as the customer face\nof exception recovery.", 34, INK, True)

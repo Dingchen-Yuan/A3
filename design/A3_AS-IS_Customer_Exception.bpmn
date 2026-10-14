@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_A3_ASIS" targetNamespace="http://kmart.example/a3">
+  <bpmn:process id="Process_A3_ASIS" name="A3 AS-IS — customer delivery exception" isExecutable="false">
+    <bpmn:startEvent id="Start_Msg" name="Carrier tells the customer something happened"/>
+    <bpmn:task id="Task_Page" name="Customer opens the carrier page"/>
+    <bpmn:exclusiveGateway id="Gw_Problem" name="Is there a delivery problem?"/>
+    <bpmn:endEvent id="End_Ok" name="Customer stops. No Kmart case."/>
+    <bpmn:task id="Task_Call" name="Customer calls the contact centre"/>
+    <bpmn:task id="Task_Lookup" name="Agent looks up the order in separate systems"/>
+    <bpmn:exclusiveGateway id="Gw_Path" name="Which queue?"/>
+    <bpmn:task id="Task_Chase" name="Chase the carrier for another attempt"/>
+    <bpmn:task id="Task_Refund" name="Send the refund to a separate queue"/>
+    <bpmn:endEvent id="End_Open" name="Customer still has no single case"/>
+    <bpmn:sequenceFlow id="F1" sourceRef="Start_Msg" targetRef="Task_Page"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="Task_Page" targetRef="Gw_Problem"/>
+    <bpmn:sequenceFlow id="F3" name="No" sourceRef="Gw_Problem" targetRef="End_Ok"/>
+    <bpmn:sequenceFlow id="F4" name="Yes" sourceRef="Gw_Problem" targetRef="Task_Call"/>
+    <bpmn:sequenceFlow id="F5" sourceRef="Task_Call" targetRef="Task_Lookup"/>
+    <bpmn:sequenceFlow id="F6" sourceRef="Task_Lookup" targetRef="Gw_Path"/>
+    <bpmn:sequenceFlow id="F7" name="Redeliver" sourceRef="Gw_Path" targetRef="Task_Chase"/>
+    <bpmn:sequenceFlow id="F8" name="Refund" sourceRef="Gw_Path" targetRef="Task_Refund"/>
+    <bpmn:sequenceFlow id="F9" sourceRef="Task_Chase" targetRef="End_Open"/>
+    <bpmn:sequenceFlow id="F10" sourceRef="Task_Refund" targetRef="End_Open"/>
+    <bpmn:textAnnotation id="Note_A2">
+      <bpmn:text>This is the customer slice of the A2 AS-IS after carrier hand-off. The order, the shipment and the exception sit in different places. The customer cannot close the exception.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_A2" sourceRef="Task_Call" targetRef="Note_A2"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_A3_ASIS">
+    <bpmndi:BPMNPlane id="Plane_A3_ASIS" bpmnElement="Process_A3_ASIS">
+      <bpmndi:BPMNShape id="Start_Msg_di" bpmnElement="Start_Msg"><dc:Bounds x="160" y="182" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Page_di" bpmnElement="Task_Page"><dc:Bounds x="250" y="160" width="160" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Problem_di" bpmnElement="Gw_Problem" isMarkerVisible="true"><dc:Bounds x="460" y="175" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Ok_di" bpmnElement="End_Ok"><dc:Bounds x="552" y="82" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Call_di" bpmnElement="Task_Call"><dc:Bounds x="560" y="160" width="170" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Lookup_di" bpmnElement="Task_Lookup"><dc:Bounds x="780" y="160" width="180" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Path_di" bpmnElement="Gw_Path" isMarkerVisible="true"><dc:Bounds x="1010" y="175" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Chase_di" bpmnElement="Task_Chase"><dc:Bounds x="1120" y="70" width="180" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Refund_di" bpmnElement="Task_Refund"><dc:Bounds x="1120" y="250" width="180" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Open_di" bpmnElement="End_Open"><dc:Bounds x="1360" y="182" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_A2_di" bpmnElement="Note_A2"><dc:Bounds x="560" y="280" width="280" height="90"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F1_di" bpmnElement="F1"><di:waypoint x="196" y="200"/><di:waypoint x="250" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F2_di" bpmnElement="F2"><di:waypoint x="410" y="200"/><di:waypoint x="460" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F3_di" bpmnElement="F3"><di:waypoint x="485" y="175"/><di:waypoint x="485" y="100"/><di:waypoint x="552" y="100"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F4_di" bpmnElement="F4"><di:waypoint x="510" y="200"/><di:waypoint x="560" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F5_di" bpmnElement="F5"><di:waypoint x="730" y="200"/><di:waypoint x="780" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F6_di" bpmnElement="F6"><di:waypoint x="960" y="200"/><di:waypoint x="1010" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F7_di" bpmnElement="F7"><di:waypoint x="1035" y="175"/><di:waypoint x="1035" y="110"/><di:waypoint x="1120" y="110"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F8_di" bpmnElement="F8"><di:waypoint x="1035" y="225"/><di:waypoint x="1035" y="290"/><di:waypoint x="1120" y="290"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F9_di" bpmnElement="F9"><di:waypoint x="1300" y="110"/><di:waypoint x="1378" y="110"/><di:waypoint x="1378" y="182"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F10_di" bpmnElement="F10"><di:waypoint x="1300" y="290"/><di:waypoint x="1378" y="290"/><di:waypoint x="1378" y="218"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_A2_di" bpmnElement="Assoc_A2"><di:waypoint x="645" y="240"/><di:waypoint x="680" y="280"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -45,9 +45,18 @@ Reset every demo case:
 curl -X POST http://localhost:3000/api/reset
 ```
 
+## What changed from A2
+
+A2 selected P2, the decision-data foundation, with a weighted score of 4.50 against 4.10 for P1 routing. P1 stays behind shadow evidence. The API pool cannot build that foundation: it has no order-management routing service and no harmonised cost dictionary.
+
+This prototype is therefore Option 3. The exception-recovery goal is unchanged. The surface is now the customer, because that is what the pool can run. The new models are:
+
+- `design/A3_AS-IS_Customer_Exception.bpmn` — carrier page, phone call, separate refund queue
+- `design/A3_TO-BE_Delivery_Assist.bpmn` — the six-step journey and one service request
+
 ## SAP fit
 
-Option 2. The API pool partly fits, so the wrapper and the customer surface changed. The business goal did not.
+The read follows the API pool sheet: `API_SALES_ORDER_SRV` with `$top=5`, `$select` and `$expand=to_Item`. Open an order and the screen reports whether the sandbox returned rows. The lab API key has to be in `.env` before that read succeeds.
 
 | Job | API | What the prototype does |
 | --- | --- | --- |
@@ -65,14 +74,6 @@ SAP_API_KEY=your-key
 SAP_WRITE_MODE=simulate
 PORT=3000
 ```
-
-## What changed from the proposal
-
-The proposal’s first build was the internal decision foundation, then basket-aware routing. Those stay later work: routing automation is high impact and high effort, and the API pool has no order-management routing service.
-
-Delivery Assist is the high-impact step that the pool can support. The customer no longer pieces together a carrier page and a phone call. One Kmart journey covers the sales order, the delivery, the freight order and the service request.
-
-The AS-IS customer path is a carrier status page, then the contact centre, then a separate refund. The TO-BE path is the six steps above, closed by one service request.
 
 ## Pitch
 

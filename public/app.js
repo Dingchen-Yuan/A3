@@ -162,8 +162,25 @@ function renderUnderstand(order) {
       <div class="fact"><span>Freight order</span><strong>${esc(order.freightOrder || '—')}</strong></div>
       <div class="fact"><span>Packed at</span><strong>${esc(order.node)}</strong></div>
     </div>
+    <p class="meta" id="sapline">Checking the SAP sales-order API…</p>
     ${actions(`${next}<a class="text-btn" href="#/">Back to my orders</a>`)}
     <div id="report"></div>`);
+  api('/api/sap/sales-orders').then(sap => {
+    const line = document.querySelector('#sapline');
+    if (!line) return;
+    if (sap.ok) {
+      line.textContent = `SAP ${sap.api} returned ${sap.count} sales orders ($top=${sap.top}, $expand=${sap.expand}).`;
+      return;
+    }
+    if (!sap.configured) {
+      line.textContent = `SAP ${sap.api} is called with $top=${sap.top}, $select and $expand=${sap.expand}. Add the lab API key to read the sandbox.`;
+      return;
+    }
+    line.textContent = `SAP ${sap.api} responded ${sap.status || 'without data'}. The order on this screen stays available.`;
+  }).catch(() => {
+    const line = document.querySelector('#sapline');
+    if (line) line.textContent = 'The SAP sales-order read could not be reached. This order is still available.';
+  });
   const wrong = document.querySelector('#wrong');
   if (!wrong) return;
   wrong.addEventListener('click', () => {

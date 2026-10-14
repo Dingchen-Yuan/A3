@@ -1,6 +1,12 @@
 const assert = require('assert');
 const { findOrder } = require('../data/orders');
 const recovery = require('../lib/recovery');
+const { SALES_ORDER_PATH } = require('../lib/sapQuery');
+
+assert.match(SALES_ORDER_PATH, /API_SALES_ORDER_SRV/);
+assert.match(SALES_ORDER_PATH, /\$top=5/);
+assert.match(SALES_ORDER_PATH, /\$select=/);
+assert.match(SALES_ORDER_PATH, /\$expand=to_Item/);
 
 const damaged = findOrder('KM185002');
 const missed = findOrder('KM184773');

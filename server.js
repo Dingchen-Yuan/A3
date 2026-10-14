@@ -4,6 +4,7 @@ const path = require('path');
 const { URL } = require('url');
 const { allOrders, findOrder, REPORTABLE } = require('./data/orders');
 const recovery = require('./lib/recovery');
+const { SALES_ORDER_PATH } = require('./lib/sapQuery');
 
 function loadEnv() {
   const env = {};
@@ -174,6 +175,42 @@ function listOrders() {
     .sort((a, b) => Number(b.tone === 'problem') - Number(a.tone === 'problem'));
 }
 
+function salesOrderRows(payload) {
+  const root = payload && (payload.d || payload);
+  if (!root) return [];
+  if (Array.isArray(root.results)) return root.results;
+  if (root.SalesOrder) return [root];
+  return [];
+}
+
+async function readSalesOrders() {
+  const query = {
+    api: 'API_SALES_ORDER_SRV',
+    path: SALES_ORDER_PATH,
+    top: 5,
+    select: 'SalesOrder,SoldToParty,TotalNetAmount,RequestedDeliveryDate,OverallDeliveryStatus',
+    expand: 'to_Item'
+  };
+  if (!SAP_BASE || !SAP_KEY) {
+    return Object.assign({ configured: false, ok: false }, query);
+  }
+  const result = await sapGet(SALES_ORDER_PATH);
+  if (!result) return Object.assign({ configured: true, ok: false }, query);
+  const rows = salesOrderRows(result.data);
+  return Object.assign({
+    configured: true,
+    ok: result.ok,
+    status: result.status,
+    count: rows.length,
+    salesOrders: rows.slice(0, 5).map(row => ({
+      SalesOrder: row.SalesOrder,
+      SoldToParty: row.SoldToParty,
+      RequestedDeliveryDate: row.RequestedDeliveryDate,
+      OverallDeliveryStatus: row.OverallDeliveryStatus
+    }))
+  }, query);
+}
+
 async function orderFromSap(salesOrder) {
   const result = await sapGet(`/sap/opu/odata/sap/API_SALES_ORDER_SRV/A_SalesOrder('${encodeURIComponent(salesOrder)}')?$expand=to_Item`);
   if (!result || !result.ok) return null;
@@ -230,8 +267,13 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         sapWriteMode: SAP_MODE,
         sapConfigured: Boolean(SAP_BASE && SAP_KEY),
-        serviceApi: recovery.SERVICE_API
+        serviceApi: recovery.SERVICE_API,
+        salesOrderApi: 'API_SALES_ORDER_SRV'
       });
+    }
+
+    if (pathname === '/api/sap/sales-orders' && req.method === 'GET') {
+      return sendJson(res, 200, await readSalesOrders());
     }
 
     if (pathname === '/api/orders' && req.method === 'GET') {
