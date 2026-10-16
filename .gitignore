@@ -1,5 +1,6 @@
 .env
 node_modules/
+INFOSYS704 A3/data/customer_state.json
 *.bak
 .DS_Store
 Thumbs.db

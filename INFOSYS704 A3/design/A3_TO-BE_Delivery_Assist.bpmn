@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_A3_TOBE" targetNamespace="http://kmart.example/a3">
+  <bpmn:process id="Process_A3_TOBE" name="A3 TO-BE — Kmart Delivery Assist" isExecutable="false">
+    <bpmn:startEvent id="Start_Open" name="Customer opens Delivery Assist"/>
+    <bpmn:task id="Task_Read" name="Read sales order, outbound delivery and freight order"/>
+    <bpmn:task id="Task_Understand" name="Show one timeline in the customer's words"/>
+    <bpmn:exclusiveGateway id="Gw_Problem" name="Problem found or reported?"/>
+    <bpmn:endEvent id="End_Track" name="Order stays on track"/>
+    <bpmn:task id="Task_Confirm" name="Customer confirms the problem"/>
+    <bpmn:task id="Task_Choose" name="Choose redelivery, collection, replacement or refund"/>
+    <bpmn:task id="Task_SR" name="Create service request on the sales order"/>
+    <bpmn:task id="Task_Track" name="Customer tracks the recovery"/>
+    <bpmn:exclusiveGateway id="Gw_Money" name="Refund?"/>
+    <bpmn:task id="Task_Refund" name="Confirm the refund and link the sales order"/>
+    <bpmn:task id="Task_Fulfil" name="Confirm redelivery, replacement or collection"/>
+    <bpmn:task id="Task_Close" name="Complete the service request"/>
+    <bpmn:endEvent id="End_Done" name="Recovery finished in one case"/>
+    <bpmn:sequenceFlow id="F1" sourceRef="Start_Open" targetRef="Task_Read"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="Task_Read" targetRef="Task_Understand"/>
+    <bpmn:sequenceFlow id="F3" sourceRef="Task_Understand" targetRef="Gw_Problem"/>
+    <bpmn:sequenceFlow id="F4" name="No" sourceRef="Gw_Problem" targetRef="End_Track"/>
+    <bpmn:sequenceFlow id="F5" name="Yes" sourceRef="Gw_Problem" targetRef="Task_Confirm"/>
+    <bpmn:sequenceFlow id="F6" sourceRef="Task_Confirm" targetRef="Task_Choose"/>
+    <bpmn:sequenceFlow id="F7" sourceRef="Task_Choose" targetRef="Task_SR"/>
+    <bpmn:sequenceFlow id="F8" sourceRef="Task_SR" targetRef="Task_Track"/>
+    <bpmn:sequenceFlow id="F9" sourceRef="Task_Track" targetRef="Gw_Money"/>
+    <bpmn:sequenceFlow id="F10" name="Yes" sourceRef="Gw_Money" targetRef="Task_Refund"/>
+    <bpmn:sequenceFlow id="F11" name="No" sourceRef="Gw_Money" targetRef="Task_Fulfil"/>
+    <bpmn:sequenceFlow id="F12" sourceRef="Task_Refund" targetRef="Task_Close"/>
+    <bpmn:sequenceFlow id="F13" sourceRef="Task_Fulfil" targetRef="Task_Close"/>
+    <bpmn:sequenceFlow id="F14" sourceRef="Task_Close" targetRef="End_Done"/>
+    <bpmn:textAnnotation id="Note_Option3">
+      <bpmn:text>Option 3. A2 selected P2, the decision-data foundation (weighted 4.50), ahead of P1 routing (4.10). The API pool has no order-management routing service and no cost dictionary. API_BILLING_DOCUMENT_REQUEST_SRV can read, reject or delete a billing document. It cannot create a refund. P2 and P1 stay the programme. This TO-BE is the customer recovery the pool can run: API_SALES_ORDER_SRV, API_OUTBOUND_DELIVERY_SRV, CE_FREIGHTORDER_0001 and OP_API_SERVICE_REQUEST_SRV_0001.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Note" sourceRef="Task_Read" targetRef="Note_Option3"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_A3_TOBE">
+    <bpmndi:BPMNPlane id="Plane_A3_TOBE" bpmnElement="Process_A3_TOBE">
+      <bpmndi:BPMNShape id="Start_Open_di" bpmnElement="Start_Open"><dc:Bounds x="80" y="202" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Read_di" bpmnElement="Task_Read"><dc:Bounds x="160" y="170" width="170" height="100"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Understand_di" bpmnElement="Task_Understand"><dc:Bounds x="370" y="180" width="160" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Problem_di" bpmnElement="Gw_Problem" isMarkerVisible="true"><dc:Bounds x="575" y="195" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Track_di" bpmnElement="End_Track"><dc:Bounds x="662" y="92" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Confirm_di" bpmnElement="Task_Confirm"><dc:Bounds x="680" y="180" width="160" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Choose_di" bpmnElement="Task_Choose"><dc:Bounds x="880" y="170" width="170" height="100"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SR_di" bpmnElement="Task_SR"><dc:Bounds x="1090" y="180" width="160" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Track_di" bpmnElement="Task_Track"><dc:Bounds x="1290" y="180" width="150" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gw_Money_di" bpmnElement="Gw_Money" isMarkerVisible="true"><dc:Bounds x="1485" y="195" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Refund_di" bpmnElement="Task_Refund"><dc:Bounds x="1580" y="80" width="170" height="90"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Fulfil_di" bpmnElement="Task_Fulfil"><dc:Bounds x="1580" y="280" width="180" height="90"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Close_di" bpmnElement="Task_Close"><dc:Bounds x="1820" y="180" width="160" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Done_di" bpmnElement="End_Done"><dc:Bounds x="2030" y="202" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_Option3_di" bpmnElement="Note_Option3"><dc:Bounds x="160" y="320" width="420" height="150"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F1_di" bpmnElement="F1"><di:waypoint x="116" y="220"/><di:waypoint x="160" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F2_di" bpmnElement="F2"><di:waypoint x="330" y="220"/><di:waypoint x="370" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F3_di" bpmnElement="F3"><di:waypoint x="530" y="220"/><di:waypoint x="575" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F4_di" bpmnElement="F4"><di:waypoint x="600" y="195"/><di:waypoint x="600" y="110"/><di:waypoint x="662" y="110"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F5_di" bpmnElement="F5"><di:waypoint x="625" y="220"/><di:waypoint x="680" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F6_di" bpmnElement="F6"><di:waypoint x="840" y="220"/><di:waypoint x="880" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F7_di" bpmnElement="F7"><di:waypoint x="1050" y="220"/><di:waypoint x="1090" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F8_di" bpmnElement="F8"><di:waypoint x="1250" y="220"/><di:waypoint x="1290" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F9_di" bpmnElement="F9"><di:waypoint x="1440" y="220"/><di:waypoint x="1485" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F10_di" bpmnElement="F10"><di:waypoint x="1510" y="195"/><di:waypoint x="1510" y="125"/><di:waypoint x="1580" y="125"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F11_di" bpmnElement="F11"><di:waypoint x="1510" y="245"/><di:waypoint x="1510" y="325"/><di:waypoint x="1580" y="325"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F12_di" bpmnElement="F12"><di:waypoint x="1750" y="125"/><di:waypoint x="1785" y="125"/><di:waypoint x="1785" y="220"/><di:waypoint x="1820" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F13_di" bpmnElement="F13"><di:waypoint x="1760" y="325"/><di:waypoint x="1790" y="325"/><di:waypoint x="1790" y="220"/><di:waypoint x="1820" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F14_di" bpmnElement="F14"><di:waypoint x="1980" y="220"/><di:waypoint x="2030" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Note_di" bpmnElement="Assoc_Note"><di:waypoint x="245" y="270"/><di:waypoint x="280" y="320"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -34,6 +34,7 @@ const SAP_TIMEOUT_MS = 8000;
 
 const { LINES } = require('./data/mockLines');
 const { SHIPMENTS, PLACES, LANES } = require('./data/deliveries');
+const customerAssist = require('./customerAssist');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -651,6 +652,7 @@ const server = http.createServer(async (req, res) => {
       setState({ locked: {} }); setStore([]); setCases([]);
       return sendJson(res, 200, { ok: true });
     }
+    if (await customerAssist.tryHandle(req, res, { sapBase: SAP_BASE, sapKey: SAP_KEY, sapMode: SAP_MODE, sendJson, jsonBody })) return;
     if (p.startsWith('/api/')) return sendJson(res, 404, { error: 'Unknown API route' });
 
     // ----- static -----

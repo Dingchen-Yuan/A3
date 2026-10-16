@@ -93,3 +93,29 @@ INFOSYS704 A3/
 ```
 
 Map tiles © OpenStreetMap contributors. Leaflet is BSD-2-licensed (`public/vendor/leaflet/LICENSE`).
+
+## Customer Delivery Assist
+
+The inbound tracker above stays the buyer tool. Delivery Assist is the customer journey from the approved solution, served beside it at [http://localhost:3000/assist/index.html](http://localhost:3000/assist/index.html). It does not change Mix-Lock or the purchase-order recovery cases.
+
+1. Track my order
+2. Understand what is happening
+3. Identify a delivery problem
+4. Choose what to do
+5. Track the recovery
+6. Complete refund or replacement
+
+| Order | What the customer sees | Use it to show |
+| --- | --- | --- |
+| `KM185002` | ANKO storage box delivered damaged | Replacement, or a refund of $18, not the whole $30 order |
+| `KM184773` | Lamp delivery attempted, no one home | Redeliver, collect from Kmart Broadway, or refund |
+| `KM184866` | Bath towel a day past the promise | A delay, then a refund of $16 or a replacement |
+| `KM184920` | Knit throw out for delivery | A healthy order, plus “Something’s wrong” |
+
+A delay finishes as a replacement or a refund. The service request uses `OP_API_SERVICE_REQUEST_SRV_0001`. `API_BILLING_DOCUMENT_REQUEST_SRV` is not used to create a refund. Sales orders are read with `API_SALES_ORDER_SRV`, `$top=5`, `$select` and `$expand=to_Item`, using the same `SAP_API_KEY`. The sandbox root is taken from `SAP_BASE_URL` by dropping the purchase-order path.
+
+```bash
+node tests/customerRecovery.test.js
+```
+
+Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.
