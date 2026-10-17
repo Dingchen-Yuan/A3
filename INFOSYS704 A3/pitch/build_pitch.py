@@ -19,6 +19,8 @@ OK = RGBColor(0x0D, 0x6A, 0x45)
 LINE = RGBColor(0xE6, 0xE0, 0xD8)
 
 W, H = Inches(13.333), Inches(7.5)
+PAGES = 12  # numbered slides; the disclaimer is not numbered
+IMG = __import__("os").path.join(__import__("os").path.dirname(__import__("os").path.abspath(__file__)), "img")
 
 
 def set_run(run, text, size, color, bold=False):
@@ -60,12 +62,26 @@ def notes(slide, text):
     slide.notes_slide.notes_text_frame.text = text
 
 
-def chrome(slide, page, pages=10):
+def chrome(slide, page, pages=PAGES):
     rect(slide, 0, 0, W, Inches(0.08), RED)
     add_text(slide, Inches(0.55), Inches(7.12), Inches(8), Inches(0.28),
              "Kmart Delivery Assist  ·  Managing Director", 12, MUTED)
     add_text(slide, Inches(10.4), Inches(7.12), Inches(2.4), Inches(0.28),
              f"{page}  /  {pages}", 12, MUTED, align=PP_ALIGN.RIGHT)
+
+
+def picture(slide, name, l, t, w=None, h=None):
+    import os
+    return slide.shapes.add_picture(os.path.join(IMG, name), l, t, w, h)
+
+
+def frame(slide, l, t, w, h):
+    """Thin border behind a screenshot."""
+    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, l, t, w, h)
+    shape.fill.background()
+    shape.line.color.rgb = LINE
+    shape.line.width = Pt(1)
+    return shape
 
 
 def new(prs, bg=WHITE):
@@ -90,7 +106,7 @@ def build():
              "See the order. Understand the problem.\nChoose the recovery. Finish it.", 24, RGBColor(0xE6, 0xE0, 0xD8))
     add_text(s, Inches(0.85), Inches(5.7), Inches(10), Inches(0.8),
              "Dingchen Yuan   ·   Taariq Mohamed   ·   Huy Nguyen\nWES  ·  SAP Build 13  ·  five minutes", 16, RGBColor(0xC8, 0xC2, 0xBA))
-    notes(s, "0:00. Good morning. We are here to show the customer face of delivery recovery. The app is open. I will spend most of the five minutes inside it. Title only. Do not read the subtitle.")
+    notes(s, "BARRY · 0:00 to 0:15. Good morning. We are here to show the customer face of delivery recovery. The app is open. I will spend most of the five minutes inside it. Title only. Do not read the subtitle.")
 
     # 2 Situation
     s = new(prs)
@@ -108,7 +124,7 @@ def build():
         rect(s, left, Inches(3.15), Inches(3.9), Inches(3.3), PAPER)
         add_text(s, left + Inches(0.25), Inches(3.4), Inches(3.4), Inches(1.3), title, 22, INK, True)
         add_text(s, left + Inches(0.25), Inches(4.8), Inches(3.4), Inches(1.3), body, 16, MUTED)
-    notes(s, "0:20 to 0:50. Situation only. Kmart has already invested in fulfilment. The sales order, the outbound delivery and the freight order exist. What the customer meets is still a carrier page and a call. Stop. Do not mention the matrix yet.")
+    notes(s, "BARRY · 0:15 to 0:40. Situation only. Kmart has already invested in fulfilment. The sales order, the outbound delivery and the freight order exist. What the customer meets is still a carrier page and a call. Stop. Do not mention the matrix yet.")
 
     # 3 Complication
     s = new(prs)
@@ -125,7 +141,7 @@ def build():
         top = Inches(2.7 + i * 1.25)
         add_text(s, Inches(0.55), top, Inches(3.2), Inches(0.8), who, 22, RED, True)
         add_text(s, Inches(3.8), top, Inches(8.6), Inches(0.9), what, 22, INK)
-    notes(s, "0:50 to 1:20. Complication. Say the three lines slowly. End on this sentence: the customer cannot finish the recovery, so the order stays an exception. Then go to the resolution.")
+    notes(s, "BARRY · 0:40 to 1:05. Complication. Say the three lines slowly. End on this sentence: the customer cannot finish the recovery, so the order stays an exception. Then go to the resolution.")
 
     # 4 Resolution
     s = new(prs)
@@ -148,7 +164,7 @@ def build():
         add_text(s, left + Inches(0.12), Inches(3.15), Inches(1.7), Inches(1.5), label, 16, WHITE if i == 0 else INK, True)
     add_text(s, Inches(0.55), Inches(5.4), Inches(12), Inches(1.2),
              "The customer stays in Kmart. The case is a SAP service request on the sales order.\nDemo order KM185002 — the damaged storage box.", 20, MUTED)
-    notes(s, "1:20 to 1:50. Read the six steps only as a path, not as a list to memorise. Point at the screen if the app is already projected. Tell them the demo order is KM185002, the damaged storage box. The cushion in the same order is fine, so a refund is eighteen dollars, not thirty.")
+    notes(s, "BARRY · 1:05 to 1:30. Hand over to Huy at the end. Read the six steps only as a path, not as a list to memorise. Point at the screen if the app is already projected. Tell them the demo order is KM185002, the damaged storage box. The cushion in the same order is fine, so a refund is eighteen dollars, not thirty.")
 
     # 5 Why this solution
     s = new(prs)
@@ -170,7 +186,7 @@ def build():
         body_color = WHITE if fill == RED else INK
         add_text(s, left + Inches(0.3), top + Inches(0.2), Inches(5.3), Inches(0.35), kicker.upper(), 13, title_color, True)
         add_text(s, left + Inches(0.3), top + Inches(0.6), Inches(5.3), Inches(1.4), body, 20, body_color, True)
-    notes(s, "1:50 to 2:20. Start from the A2 effort-impact result, do not invent a new winner. P2 scored 4.50 and stays the programme. P1 scored 4.10 and waits for shadow evidence. Say why the prototype is Delivery Assist: the API pool has no routing service and no cost dictionary, so the internal foundation cannot be built here. The pool can read the order journey and open a service request. That is the exception the customer feels. A status page with no choice does not recover it.")
+    notes(s, "HUY · 1:30 to 1:55. Start from the A2 effort-impact result, do not invent a new winner. P2 scored 4.50 and stays the programme. P1 scored 4.10 and waits for shadow evidence. Say why the prototype is Delivery Assist: the API pool has no routing service and no cost dictionary, so the internal foundation cannot be built here. The pool can read the order journey and open a service request. That is the exception the customer feels. A status page with no choice does not recover it.")
 
     # 6 Design and the API change
     s = new(prs)
@@ -194,7 +210,7 @@ def build():
     add_text(s, Inches(7.75), Inches(2.25), Inches(4.9), Inches(3.8),
              "AS-IS\nCarrier page, then a phone call, then a separate refund queue.\n\nTO-BE\nOne Kmart journey. One service request.\n\nNot available\nThe billing API cannot create a refund. The app confirms it and links the sales order.",
              16, INK)
-    notes(s, "2:20 to 2:45. This is option 3, not a small wrapper change. Name the five stages once: empathise, define, ideate, prototype, test. Then the models. AS-IS file is design/A3_AS-IS_Customer_Exception.bpmn. TO-BE file is design/A3_TO-BE_Delivery_Assist.bpmn. Say the billing API can read, reject or delete, and cannot create a refund. Do not claim a live refund posting. The write we do have is the service request.")
+    notes(s, "HUY · 1:55 to 2:20. This is option 3, not a small wrapper change. Name the five stages once: empathise, define, ideate, prototype, test. Then the models. AS-IS file is design/A3_AS-IS_Customer_Exception.bpmn. TO-BE file is design/A3_TO-BE_Delivery_Assist.bpmn. Say the billing API can read, reject or delete, and cannot create a refund. Do not claim a live refund posting. The write we do have is the service request.")
 
     # 7 Usability heuristics
     s = new(prs)
@@ -221,9 +237,31 @@ def build():
         top = Inches(1.55 + row * 1.0)
         add_text(s, left, top, Inches(2.4), Inches(0.7), title, 16, RED, True)
         add_text(s, left + Inches(2.4), top, Inches(3.6), Inches(0.7), body, 16, INK)
-    notes(s, "2:45 to 3:05. Do not read all ten. Say: status stays visible, the words are the customer’s, a refund asks twice, and a healthy order is not forced into a problem. The other six are on the slide if asked. Then go to the app.")
+    notes(s, "HUY · 2:20 to 2:35. Do not read all ten. Say: status stays visible, the words are the customer’s, a refund asks twice, and a healthy order is not forced into a problem. The other six are on the slide if asked. Hand over to Taariq.")
 
-    # 7 Demo
+    # 8 Under the hood: SAP
+    s = new(prs)
+    chrome(s, 8)
+    add_text(s, Inches(0.55), Inches(0.35), Inches(8), Inches(0.3), "UNDER THE HOOD  ·  SAP", 14, RED, True)
+    add_text(s, Inches(0.55), Inches(0.7), Inches(12), Inches(0.6),
+             "Real SAP data in. Exact SAP requests out.", 28, INK, True)
+    cols = [
+        ("READ LIVE", RED,
+         "Sales Order API\nAPI_SALES_ORDER_SRV\nOrder, items and delivery status ($top, $select, $expand).\n\nPurchase Order API (OData V4)\nSupplier orders, items, schedule-line dates."),
+        ("WRITE  ·  SIMULATED", INK,
+         "Service request\nOP_API_SERVICE_REQUEST_SRV_0001\n\nPurchase-order items, schedule lines, notes.\n\nThe sandbox is read-only (POST returns 405), so each request is built in exact OData format, saved and shown on screen. One setting switches to live S/4HANA."),
+        ("BUILT THE LAB WAY", INK,
+         "SAP Integration Suite: API proxy and MCP server deployed.\n\nOpenCode prompts with the API spec, sandbox URL and API key.\n\nIf the sandbox is down, the app falls back to the last saved SAP snapshot."),
+    ]
+    for i, (kicker, color, body) in enumerate(cols):
+        left = Inches(0.55 + i * 4.15)
+        rect(s, left, Inches(1.7), Inches(3.9), Inches(4.95), PAPER)
+        rect(s, left, Inches(1.7), Inches(3.9), Inches(0.08), color)
+        add_text(s, left + Inches(0.25), Inches(1.95), Inches(3.4), Inches(0.4), kicker, 14, color, True)
+        add_text(s, left + Inches(0.25), Inches(2.45), Inches(3.5), Inches(4.0), body, 14, INK)
+    notes(s, "TAARIQ · 2:35 to 2:55. Twenty seconds. Say: the order data is read live from the SAP sandbox with our API key. The sandbox does not allow writes, so every write is built in the exact SAP format and shown in the app, ready for production. We deployed the API proxy and MCP server in Integration Suite and built the app with OpenCode prompts. Then go to the app.")
+
+    # 9 Demo
     s = new(prs, INK)
     rect(s, 0, 0, Inches(0.18), H, RED)
     add_text(s, Inches(0.85), Inches(0.45), Inches(6), Inches(0.3), "SHOW IT", 14, RED, True)
@@ -238,26 +276,72 @@ def build():
     ]
     for i, line in enumerate(script):
         add_text(s, Inches(0.85), Inches(3.1 + i * 0.7), Inches(11), Inches(0.55), f"{i+1}    {line}", 22, WHITE)
-    notes(s, "2:40 to 4:20. Leave this slide only if the app is not yet on screen. Preferred: the app is already full screen and you do not linger here. Clicks: Storage box. See the problem. This is the problem. Continue, replacement is already selected. Check for an update. Check again. Review the outcome. Confirm replacement. Open the SAP service request and point at the sales order 450218 and the service request API. If time remains, say the lamp order offers redelivery, store collection or a full refund. Do not hunt for menus.")
+    notes(s, "TAARIQ · 2:55 to 4:05. Leave this slide only if the app is not yet on screen. Preferred: the app is already full screen and you do not linger here. Clicks: Storage box. See the problem. This is the problem. Continue, replacement is already selected. Check for an update. Check again. Review the outcome. Confirm replacement. Open the SAP service request and point at the sales order 450218 and the service request API. If the demo fails, skip to the backup slide (12) and talk through the screenshots. Do not hunt for menus.")
 
-    # 8 Close
+    # 10 Supply Hub: the buyer side of the same exceptions
     s = new(prs)
-    chrome(s, 9)
+    chrome(s, 10)
+    add_text(s, Inches(0.55), Inches(0.35), Inches(9), Inches(0.3), "SAME EXCEPTIONS  ·  BUYER SIDE", 14, RED, True)
+    add_text(s, Inches(0.55), Inches(0.7), Inches(12.3), Inches(0.6),
+             "Before an order reaches a customer, the stock has to arrive.", 28, INK, True)
+    frame(s, Inches(0.55), Inches(1.6), Inches(7.1), Inches(4.2))
+    picture(s, "supplyhub_tracker.png", Inches(0.56), Inches(1.61), Inches(7.08))
+    add_text(s, Inches(0.55), Inches(5.9), Inches(7.1), Inches(0.4),
+             "Supply Hub · Delivery Tracker · Knit Throw, 9 days late (live SAP purchase order)", 12, MUTED)
+    hub = [
+        ("Delivery Tracker", "Inbound supplier orders on a map. SAP schedule lines flag a delay, short shipment, damage or supplier rejection."),
+        ("Same recovery path", "Expedite, replace, refund or re-source, each built as SAP purchase-order changes."),
+        ("Mix-Lock", "Defers the Anko colour and size split until early sell-through is in. Knit Throw markdown risk: $2,218 to $605."),
+    ]
+    for i, (title, body) in enumerate(hub):
+        top = Inches(1.6 + i * 1.45)
+        add_text(s, Inches(8.0), top, Inches(4.8), Inches(0.4), title, 18, RED, True)
+        add_text(s, Inches(8.0), top + Inches(0.42), Inches(4.8), Inches(0.95), body, 15, INK)
+    notes(s, "TAARIQ · 4:05 to 4:30. Twenty-five seconds, no demo unless asked. Say: Delivery Assist is the customer face. Supply Hub, in the same app, is the buyer side. It catches the same kinds of delivery problems earlier, on the supplier purchase order, using the same SAP API. Mix-Lock reduces the markdown risk before stock is even shipped. Hand back to Barry for the ask.")
+
+    # 11 Close
+    s = new(prs)
+    chrome(s, 11)
     add_text(s, Inches(0.55), Inches(0.35), Inches(4), Inches(0.3), "THE ASK", 14, RED, True)
     add_text(s, Inches(0.55), Inches(0.8), Inches(12), Inches(1.2),
              "Use this as the customer face\nof exception recovery.", 34, INK, True)
     asks = [
         ("Today", "A customer can finish a damaged, missed or missing delivery without a call."),
-        ("Next", "The decision-data foundation and routing automation stay on the programme, behind shadow evidence."),
+        ("Next", "Supply Hub brings the same recovery to inbound supplier orders. Decision data and routing stay on the programme."),
         ("Guardrail", "A refund is explicit. A healthy order is not turned into a case."),
     ]
     for i, (title, body) in enumerate(asks):
         top = Inches(2.7 + i * 1.25)
         add_text(s, Inches(0.55), top, Inches(2.4), Inches(0.7), title, 22, RED, True)
         add_text(s, Inches(3.1), top, Inches(9.3), Inches(0.9), body, 22, INK)
-    notes(s, "4:20 to 4:45. Close on the ask, not a summary of every slide. Today the customer can finish the recovery. The heavier routing work stays later. A refund is a decision, not a side effect. Thank them and take one question. Then the disclaimer slide is for the upload, not for a speech.")
+    notes(s, "BARRY · 4:30 to 4:50. Close on the ask, not a summary of every slide. Today the customer can finish the recovery. The heavier routing work stays later. A refund is a decision, not a side effect. Thank them and take one question. Then the disclaimer slide is for the upload, not for a speech.")
 
-    # 9 Disclaimer — must be last
+    # 12 Backup screenshots, in case the live demo fails
+    s = new(prs)
+    chrome(s, 12)
+    add_text(s, Inches(0.55), Inches(0.35), Inches(9), Inches(0.3), "IF THE DEMO FAILS  ·  ORDER KM185002", 14, RED, True)
+    add_text(s, Inches(0.55), Inches(0.7), Inches(12), Inches(0.6),
+             "The same journey, screen by screen.", 26, INK, True)
+    shots = [
+        ("assist_1_understand.png", "2  Understand"),
+        ("assist_2_problem.png", "3  Identify the problem"),
+        ("assist_3_choose.png", "4  Choose what to do"),
+        ("assist_4_track.png", "5  Track the recovery"),
+        ("assist_5_complete.png", "6  Complete, with the SAP request"),
+    ]
+    for i, (name, label) in enumerate(shots):
+        left = Inches(0.55 + i * 2.5)
+        frame(s, left, Inches(1.55), Inches(2.3), Inches(5.0))
+        pic = picture(s, name, left + Inches(0.01), Inches(1.56), Inches(2.28))
+        # keep the phone inside the frame: crop the bottom if it runs long
+        max_h = Inches(4.98)
+        if pic.height > max_h:
+            pic.crop_bottom = 1 - max_h / pic.height
+            pic.height = max_h
+        add_text(s, left, Inches(6.62), Inches(2.3), Inches(0.4), label, 12, MUTED)
+    notes(s, "Backup only. Use it if the app will not load in the lab. Talk through the five screens in under a minute, then go to the ask.")
+
+    # 13 Disclaimer — must be last
     s = new(prs)
     rect(s, 0, 0, W, Inches(0.08), RED)
     add_text(s, Inches(0.4), Inches(0.2), Inches(12.5), Inches(0.4),
@@ -299,10 +383,7 @@ def build():
     add_text(s, Inches(0.4), Inches(3.85), Inches(12.5), Inches(1.15),
              "Criteria explanation:\n1. UPI: Enter each team member’s UPI before upload. The cells above are intentionally blank.\n2. % Contribution: Enter a percentage for each member. The figures must add up to 100%.\n3. Comments (optional): Add a comment where the percentage needs context.",
              13, INK)
-    add_text(s, Inches(0.4), Inches(5.15), Inches(12.5), Inches(1.7),
-             "The 34 / 33 / 33 split is an equal contribution with one percent for rounding. Confirm it with the group before submission. Replace the comment text if the group agrees a different split.\n\nHelix delivery names on the business-case slides are unchanged: Dingchen Yuan, Taariq Mohamed, Huy Nguyen.",
-             14, MUTED)
-    notes(s, "Do not spend speaking time here unless asked. This slide has to be last in the file. Fill the three UPIs before Canvas upload. Confirm 34/33/33 with Taariq and Huy. If the split changes, change the percentages so they still total 100.")
+    notes(s, "Do not spend speaking time here unless asked. This slide has to be last in the file. Fill the three UPIs before Canvas upload. Confirm the 34/33/33 split with the whole group. If the split changes, change the percentages so they still total 100.")
 
     out = "pitch/Kmart-Delivery-Assist-Lab12.pptx"
     prs.save(out)
