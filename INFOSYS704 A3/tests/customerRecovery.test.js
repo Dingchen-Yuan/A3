@@ -12,6 +12,8 @@ const delayed = findOrder('KM184866');
 const delayedOptions = recovery.optionsFor(delayed, delayed.problem);
 assert.deepStrictEqual(delayedOptions.map(option => option.id), ['replace', 'refund']);
 assert.strictEqual(delayedOptions.find(option => option.id === 'refund').amount, 16);
+assert.match(delayedOptions.find(option => option.id === 'refund').detail, /will not be delivered/);
+assert.doesNotMatch(delayedOptions.find(option => option.id === 'refund').detail, /rest of the order/);
 
 const damaged = findOrder('KM185002');
 const missed = findOrder('KM184773');
@@ -25,6 +27,8 @@ const damagedOptions = recovery.optionsFor(damaged, damaged.problem);
 assert.deepStrictEqual(damagedOptions.map(option => option.id), ['replace', 'refund']);
 assert.strictEqual(damagedOptions[0].recommended, true);
 assert.strictEqual(damagedOptions[1].amount, 18);
+assert.match(damagedOptions[1].detail, /That item only/);
+assert.match(damagedOptions[1].detail, /rest of the order/);
 
 const missedOptions = recovery.optionsFor(missed, missed.problem);
 assert.deepStrictEqual(missedOptions.map(option => option.id), ['redeliver', 'collect', 'refund']);
@@ -38,6 +42,19 @@ assert.strictEqual(created.stepIndex, 0);
 assert.strictEqual(created.requests[0].body.api, 'OP_API_SERVICE_REQUEST_SRV_0001');
 assert.strictEqual(created.requests[0].body.SalesOrder, '450218');
 assert.strictEqual(created.requests[0].body.ResolutionCode, 'REPLACEMENT');
+assert.strictEqual(created.detail, option.detail);
+
+const partial = recovery.outcomeCopy(
+  recovery.createCase({ order: damaged, problem: damaged.problem, option: damagedOptions[1] }),
+  damaged
+);
+assert.match(partial.lead, /rest of the order/);
+const whole = recovery.outcomeCopy(
+  recovery.createCase({ order: delayed, problem: delayed.problem, option: delayedOptions[1] }),
+  delayed
+);
+assert.match(whole.lead, /will not be delivered/);
+assert.doesNotMatch(whole.lead, /rest of the order/);
 
 recovery.advance(created);
 assert.strictEqual(created.status, 'open');

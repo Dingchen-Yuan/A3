@@ -43,6 +43,14 @@ function affectedTotal(order) {
   return basis.reduce((sum, item) => sum + item.price * item.qty, 0);
 }
 
+function refundDetail(order, amount) {
+  const full = orderTotal(order);
+  if (amount > 0 && amount < full) {
+    return 'That item only, back to your original payment. The rest of the order stays as it is.';
+  }
+  return 'Back to your original payment. This order will not be delivered.';
+}
+
 function optionsFor(order, problem) {
   if (!problem) return [];
   const full = orderTotal(order);
@@ -70,7 +78,7 @@ function optionsFor(order, problem) {
       {
         id: 'refund',
         title: `Refund ${money(full)}`,
-        detail: 'Back to your original payment. This order will not be delivered.',
+        detail: refundDetail(order, full),
         recommended: false,
         outcome: 'refund',
         amount: full
@@ -90,7 +98,7 @@ function optionsFor(order, problem) {
     {
       id: 'refund',
       title: `Refund ${money(affected)}`,
-      detail: 'That item only, back to your original payment. The rest of the order stays as it is.',
+      detail: refundDetail(order, affected),
       recommended: false,
       outcome: 'refund',
       amount: affected
@@ -131,6 +139,7 @@ function createCase({ order, problem, option }) {
     optionId: option.id,
     outcome: option.outcome,
     title: option.title,
+    detail: option.detail,
     amount: option.amount,
     stepIndex: 0,
     steps: STEP_COPY[option.id],
@@ -176,15 +185,18 @@ function outcomeCopy(recoveryCase, order) {
   if (recoveryCase.outcome === 'refund') {
     return {
       heading: `${money(recoveryCase.amount)} refund confirmed`,
-      lead: 'It goes back to your original payment. You do not need to call us.',
+      lead: recoveryCase.detail || refundDetail(order, recoveryCase.amount),
       confirm: 'Confirm refund',
       done: 'Refund confirmed'
     };
   }
   if (recoveryCase.outcome === 'replacement') {
+    const damaged = (order.items || []).some(entry => entry.damaged);
     return {
       heading: 'Replacement booked for tomorrow, 5–8pm',
-      lead: `A new ${item} will go to the same address. Keep or discard the damaged one.`,
+      lead: damaged
+        ? `A new ${item} will go to the same address. Keep or discard the damaged one.`
+        : `A new ${item} will go to the same address. You do not need to call us.`,
       confirm: 'Confirm replacement',
       done: 'Replacement confirmed'
     };
@@ -213,6 +225,7 @@ module.exports = {
   affectedTotal,
   optionsFor,
   optionById,
+  refundDetail,
   createCase,
   advance,
   complete,

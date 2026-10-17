@@ -107,6 +107,15 @@ function catalogueOrder(id) {
   return order;
 }
 
+function caseLabel(recoveryCase) {
+  if (!recoveryCase) return null;
+  if (recoveryCase.status !== 'closed') return 'Recovery in progress';
+  if (recoveryCase.outcome === 'refund') return 'Refund confirmed';
+  if (recoveryCase.outcome === 'replacement') return 'Replacement confirmed';
+  if (recoveryCase.outcome === 'collection') return 'Collection confirmed';
+  return 'Redelivery confirmed';
+}
+
 function listOrders() {
   return allOrders()
     .map(order => {
@@ -122,7 +131,8 @@ function listOrders() {
         promise: order.promise,
         tone: order.problem ? 'problem' : 'ok',
         hasCase: Boolean(card.recoveryCase),
-        caseStatus: card.recoveryCase ? card.recoveryCase.status : null
+        caseStatus: card.recoveryCase ? card.recoveryCase.status : null,
+        caseLabel: caseLabel(card.recoveryCase)
       };
     })
     .sort((a, b) => Number(b.tone === 'problem') - Number(a.tone === 'problem'));
@@ -289,11 +299,15 @@ async function tryHandle(req, res, ctx) {
         sendJson(res, 400, { error: 'Choose a recovery option.' });
         return true;
       }
+      const state = readState();
+      if (state.cases[current.id]) {
+        sendJson(res, 200, withProblem(current));
+        return true;
+      }
       const recoveryCase = recovery.createCase({ order: current, problem: current.problem, option });
       const posted = await sapPost(root, key, mode, '/sap/opu/odata/sap/OP_API_SERVICE_REQUEST_SRV_0001/A_ServiceRequest', recoveryCase.requests[0].body);
       recoveryCase.requests[0].mode = posted.mode;
       if (posted.status) recoveryCase.requests[0].status = posted.status;
-      const state = readState();
       state.cases[current.id] = recoveryCase;
       writeState(state);
       sendJson(res, 200, withProblem(catalogueOrder(current.id) || current));
@@ -312,6 +326,10 @@ async function tryHandle(req, res, ctx) {
     }
     const order = catalogueOrder(orderId);
     const option = recovery.optionById(order, order.problem, state.cases[orderId].optionId);
+    if (!option) {
+      sendJson(res, 400, { error: 'Choose a recovery option.' });
+      return true;
+    }
     if (caseMatch[2] === 'advance') {
       recovery.advance(state.cases[orderId]);
     } else {

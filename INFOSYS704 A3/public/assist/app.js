@@ -9,7 +9,7 @@ const STEPS = [
 
 const view = document.querySelector('#view');
 let selectedOption = null;
-let busy = false;
+let viewToken = 0;
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -50,6 +50,11 @@ function paint(html, keepScroll) {
   const phone = document.querySelector('#phone');
   if (phone) phone.scrollTop = 0;
   window.scrollTo(0, 0);
+  const heading = view.querySelector('h1');
+  if (heading) {
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }
 }
 
 function route() {
@@ -61,6 +66,7 @@ function route() {
 }
 
 async function showHome(message) {
+  const token = ++viewToken;
   selectedOption = null;
   let orders = [];
   let error = message || '';
@@ -70,11 +76,13 @@ async function showHome(message) {
   } catch (err) {
     error = err.message;
   }
+  if (token !== viewToken) return;
   const cards = orders.map(order => `
     <a class="card-link" href="#/order/${esc(order.id)}">
       <strong>${esc(order.item)}</strong>
       <div class="meta">${esc(order.id)} · ${esc(order.promise)}</div>
       <span class="pill ${order.tone === 'problem' ? 'problem' : 'ok'}">${esc(order.summary)}</span>
+      ${order.caseLabel ? `<span class="pill ${order.caseStatus === 'closed' ? 'ok' : 'problem'}">${esc(order.caseLabel)}</span>` : ''}
     </a>`).join('');
   paint(`
     <p class="kicker">Your orders</p>
@@ -106,12 +114,14 @@ async function load(id) {
 }
 
 async function showScreen(id, screen) {
+  const token = ++viewToken;
   let order;
   try {
     order = await load(id);
   } catch (err) {
     return showHome(err.message);
   }
+  if (token !== viewToken) return;
   if (screen === 'problem') return renderProblem(order);
   if (screen === 'choose') return renderChoose(order);
   if (screen === 'recovery') return renderRecovery(order);
@@ -139,11 +149,15 @@ function timeline(order) {
 function renderUnderstand(order) {
   const existing = order.recoveryCase;
   const problem = order.problem;
+  const closed = existing && existing.status === 'closed';
   let next = '';
-  if (existing && existing.status === 'closed') {
+  let banner = '';
+  if (closed) {
     next = `<a class="btn block" href="#/order/${esc(order.id)}/outcome">View the outcome</a>`;
+    banner = `<div class="banner">This recovery is finished. <a href="#/order/${esc(order.id)}/outcome">View the outcome</a>.</div>`;
   } else if (existing) {
     next = `<a class="btn block" href="#/order/${esc(order.id)}/recovery">Continue your recovery</a>`;
+    banner = `<div class="banner">A recovery is already open for this order. <a href="#/order/${esc(order.id)}/recovery">Continue it</a>.</div>`;
   } else if (problem) {
     next = `<a class="btn block" href="#/order/${esc(order.id)}/problem">See the problem</a>`;
   } else {
@@ -153,7 +167,7 @@ function renderUnderstand(order) {
     ${progress(2)}
     <h1>${esc(order.headline)}</h1>
     <p class="lead">${esc(order.customer)}, this is home delivery to ${esc(order.address)}. Promised ${esc(order.promise)}.</p>
-    ${existing ? `<div class="banner">A recovery is already open for this order. <a href="#/order/${esc(order.id)}/recovery">Continue it</a>.</div>` : ''}
+    ${banner}
     ${timeline(order)}
     <div class="facts">${itemList(order)}</div>
     <div class="facts">
@@ -162,12 +176,12 @@ function renderUnderstand(order) {
       <div class="fact"><span>Freight order</span><strong>${esc(order.freightOrder || '—')}</strong></div>
       <div class="fact"><span>Packed at</span><strong>${esc(order.node)}</strong></div>
     </div>
-    <p class="meta" id="sapline">Checking the SAP sales-order API…</p>
+    <p class="meta" id="sapline" data-order="${esc(order.id)}">Checking the SAP sales-order API…</p>
     ${actions(`${next}<a class="text-btn" href="#/">Back to my orders</a>`)}
     <div id="report"></div>`);
   api('/api/assist/sap/sales-orders').then(sap => {
     const line = document.querySelector('#sapline');
-    if (!line) return;
+    if (!line || line.dataset.order !== order.id) return;
     if (sap.ok) {
       line.textContent = `SAP ${sap.api} returned ${sap.count} sales orders ($top=${sap.top}, $expand=${sap.expand}).`;
       return;
@@ -179,7 +193,7 @@ function renderUnderstand(order) {
     line.textContent = `SAP ${sap.api} responded ${sap.status || 'without data'}. The order on this screen stays available.`;
   }).catch(() => {
     const line = document.querySelector('#sapline');
-    if (line) line.textContent = 'The SAP sales-order read could not be reached. This order is still available.';
+    if (line && line.dataset.order === order.id) line.textContent = 'The SAP sales-order read could not be reached. This order is still available.';
   });
   const wrong = document.querySelector('#wrong');
   if (!wrong) return;
@@ -192,9 +206,11 @@ function renderUnderstand(order) {
         <button class="btn secondary" type="button" data-code="DAMAGED">Something arrived damaged</button>
         <button class="btn secondary" type="button" data-code="MISSING">An item is missing</button>
       </div>`;
-    document.querySelector('#report').addEventListener('click', async event => {
+    const report = document.querySelector('#report');
+    report.onclick = async event => {
       const code = event.target.dataset && event.target.dataset.code;
-      if (!code) return;
+      if (!code || report.dataset.sent === '1') return;
+      report.dataset.sent = '1';
       event.target.disabled = true;
       try {
         await api(`/api/assist/orders/${encodeURIComponent(order.id)}/problem`, {
@@ -203,9 +219,11 @@ function renderUnderstand(order) {
         });
         location.hash = `#/order/${encodeURIComponent(order.id)}/problem`;
       } catch (err) {
-        document.querySelector('#report').insertAdjacentHTML('beforeend', `<p class="error" role="alert">${esc(err.message)}</p>`);
+        report.dataset.sent = '';
+        event.target.disabled = false;
+        report.insertAdjacentHTML('beforeend', `<p class="error" role="alert">${esc(err.message)}</p>`);
       }
-    });
+    };
   });
 }
 
@@ -323,16 +341,23 @@ function outcomeText(recoveryCase, order) {
   const item = (order.items.find(entry => entry.damaged) || order.items[0]).name;
   const closed = recoveryCase.status === 'closed';
   if (recoveryCase.outcome === 'refund') {
+    const partial = recoveryCase.amount > 0 && recoveryCase.amount < order.total;
+    const lead = recoveryCase.detail || (partial
+      ? 'That item only, back to your original payment. The rest of the order stays as it is.'
+      : 'Back to your original payment. This order will not be delivered.');
     return {
       heading: closed ? `${money(recoveryCase.amount)} refund confirmed` : `Refund ${money(recoveryCase.amount)}`,
-      lead: 'It goes back to your original payment. This will not be delivered again.',
+      lead,
       confirm: 'Confirm refund'
     };
   }
   if (recoveryCase.outcome === 'replacement') {
+    const damaged = order.items.some(entry => entry.damaged);
     return {
       heading: closed ? 'Replacement confirmed' : 'Replacement tomorrow, 5–8pm',
-      lead: `A new ${item} will go to the same address. You don’t need to call us.`,
+      lead: damaged
+        ? `A new ${item} will go to the same address. Keep or discard the damaged one.`
+        : `A new ${item} will go to the same address. You don’t need to call us.`,
       confirm: 'Confirm replacement'
     };
   }
@@ -403,7 +428,12 @@ function bindRestart(id) {
   if (!button) return;
   button.addEventListener('click', async () => {
     button.disabled = true;
-    await api(`/api/assist/orders/${encodeURIComponent(id)}/reset`, { method: 'POST' });
+    try {
+      await api(`/api/assist/orders/${encodeURIComponent(id)}/reset`, { method: 'POST' });
+    } catch (err) {
+      button.disabled = false;
+      return;
+    }
     selectedOption = null;
     const next = `#/order/${encodeURIComponent(id)}`;
     if (location.hash === next) route();
