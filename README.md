@@ -20,6 +20,8 @@ node server.js
 
 Open <http://localhost:3000> for **Delivery Assist**. The **Supply Hub buyer workspace** is at <http://localhost:3000/supply-hub>. The earlier `/assist/index.html` address still works, and old buyer hash bookmarks such as `/#/deliveries` forward to Supply Hub.
 
+Both experiences share the same left navigation: **Delivery Assist → Mix-Lock → Delivery Tracker → History**. It stays visible above 640px (including the OpenCode preview); phones use the menu button, with Escape/backdrop closing and keyboard focus handling. Delivery Assist's six-step progress remains on the page, with the full journey also available in the sidebar's expandable section.
+
 - **Without a key**, the customer demo catalogue and simulated recoveries still work. Supply Hub reads POs from `data/sap_cache.json`, and its header shows "SAP · cached snapshot".
 - **With a key**, Supply Hub supports live SAP purchase-order reads and refreshes its snapshot. Delivery Assist can also query the sales-order API; the four customer demo timelines remain simulated.
 - **Reset demo** in the buyer sidebar clears buyer locks, recovery cases and saved SAP requests. Customer orders have a separate "Start this order again" action.
@@ -132,6 +134,16 @@ A delay finishes as a replacement or a refund. The service request uses `OP_API_
 - In `live` mode, missing credentials, SAP errors and timeouts return an error rather than silently switching to simulation. Failed creation saves no confirmed case; failed completion leaves the case ready to retry.
 - Reporting another problem or choosing a different option cannot silently erase an existing case. Restarting remains an explicit demo action.
 
+### Read-only recovery tracking
+
+- **Refresh status** uses `GET /api/assist/cases/{caseId}`. It reads the saved case without advancing steps, completing an outcome, updating the case timestamp, populating SAP caches or sending SAP requests.
+- **Last updated** is the saved case's `updatedAt`; **Last checked** is the response-only `recoveryCheckedAt` timestamp from the latest successful read. Refresh failures keep the last displayed status and checked time and show a retryable error.
+- Simulated progress is under a separate, collapsed **Demo controls · presentation only** panel. **Advance demo** represents a simulated supplier/fulfilment update; it is not part of customer status checking.
+- The server permits demo advancement only in `simulate` mode for a case originally created in simulation. Live cases and live-mode servers reject manual advancement. Repeating advancement at the final step is a no-op and does not change `updatedAt`.
+- **Review the outcome** appears only when the case is ready. Refreshing a ready case does not confirm it: the customer must still explicitly confirm the refund/replacement.
+
+For a presentation, open **Demo controls** on Step 5 and advance the two simulated updates, then use **Review the outcome** and confirm. No live carrier/status-feed integration is implied by this demo.
+
 ### Item-specific problems and partial recovery
 
 - Step 3 lets customers confirm the problem type and select affected items/quantities for **damage** or **missing items**. Delay and failed-attempt reports apply to the whole delivery and say so explicitly.
@@ -151,9 +163,10 @@ node tests/customerRecovery.test.js
 node tests/customerAmounts.test.js
 node tests/customerSelections.test.js
 node tests/customerAssist.test.js
+node tests/customerTracking.test.js
 node tests/navigation.test.js
 ```
 
-The API tests use in-memory state and mocked SAP responses, including SAP-only orders through lookup, reporting, recovery, restart and reopening. Selection/amount tests cover partial quantities, duplicate SKUs, invalid/tampered selections, zero-value items, decimal precision and currencies. Navigation/view tests check encoded IDs and displayed scope/totals using a temporary local port. None of these tests resets your saved demo state or sends real SAP writes.
+The API tests use in-memory state and mocked SAP responses, including SAP-only orders through lookup, reporting, recovery, restart and reopening. Tracking tests verify read-only refresh, unchanged case timestamps, blocked live demo advancement and explicit completion. Selection/amount tests cover partial quantities, duplicate SKUs, invalid/tampered selections, zero-value items, decimal precision and currencies. Navigation/view tests check encoded IDs, scope/totals and GET-only refresh requests using a temporary local port. None of these tests resets your saved demo state or sends real SAP writes.
 
 Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.

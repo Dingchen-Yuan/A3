@@ -1,1 +1,59 @@
-[]
+[
+  {
+    "id": "RC-1001",
+    "shipmentId": "S001",
+    "product": "ANKO Knit Throw AW27",
+    "poNumber": "4500207755",
+    "problem": {
+      "type": "delay",
+      "title": "Arriving 9 days late",
+      "severity": "High",
+      "units": 171,
+      "value": 1676,
+      "daysLate": 9
+    },
+    "action": {
+      "id": "reschedule",
+      "title": "Accept delay and move the launch",
+      "cost": 0,
+      "daysToShelf": 17
+    },
+    "comment": "",
+    "owner": "Anko Buyer – Homewares",
+    "steps": [
+      "Raised",
+      "Supplier notified",
+      "Delivery date updated",
+      "Stores & promo plan updated",
+      "Resolved"
+    ],
+    "stepIndex": 4,
+    "status": "Resolved",
+    "history": [
+      {
+        "step": "Raised",
+        "at": "2026-10-18T11:21:25.875Z"
+      },
+      {
+        "step": "Supplier notified",
+        "at": "2026-10-18T11:21:27.091Z"
+      },
+      {
+        "step": "Delivery date updated",
+        "at": "2026-10-18T11:21:27.459Z"
+      },
+      {
+        "step": "Stores & promo plan updated",
+        "at": "2026-10-18T11:21:28.404Z"
+      },
+      {
+        "step": "Resolved",
+        "at": "2026-10-18T11:21:29.701Z"
+      }
+    ],
+    "writeId": "wr_1792322485872_zu77n0",
+    "createdAt": "2026-10-18T11:21:25.875Z",
+    "resolvedAt": "2026-10-18T11:21:29.701Z",
+    "newEta": "2026-11-04"
+  }
+]

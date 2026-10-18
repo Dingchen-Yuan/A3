@@ -44,6 +44,8 @@ function harness({ mode = 'simulate', key = '', fetchImpl, initialState = { case
     calls,
     get writes() { return writes; },
     state: () => JSON.parse(saved),
+    // Test-only fixture for updates received from a trusted external service.
+    seedState(state) { saved = JSON.stringify(state); },
     setFetch(fn) { fetcher = fn; },
     async request(url, body = {}, method = 'POST') {
       const response = {};
@@ -70,6 +72,15 @@ async function ready(app, caseId) {
   await app.request(`/api/assist/cases/${caseId}/advance`);
   const result = await app.request(`/api/assist/cases/${caseId}/advance`);
   assert.equal(result.body.recoveryCase.status, 'ready');
+}
+
+function serviceReady(app, caseId) {
+  const state = app.state();
+  const recoveryCase = Object.values(state.cases).find(entry => entry.id === caseId);
+  recoveryCase.stepIndex = recoveryCase.steps.length - 1;
+  recoveryCase.status = 'ready';
+  recoveryCase.updatedAt = new Date().toISOString();
+  app.seedState(state);
 }
 
 function deferred() {
@@ -219,7 +230,7 @@ async function run() {
   // A failed live completion leaves the case ready and safe to retry.
   const live = harness({ mode: 'live', key: 'test-key', fetchImpl: () => sapResponse() });
   const liveId = (await open(live)).body.recoveryCase.id;
-  await ready(live, liveId);
+  serviceReady(live, liveId);
   const beforeFailure = live.state();
   const writesBeforeFailure = live.writes;
   for (const fail of [() => sapResponse(405), () => { throw new Error('Connection lost'); }]) {
@@ -259,7 +270,7 @@ async function run() {
   assert.equal(created[0].body.recoveryCase.id, created[1].body.recoveryCase.id);
   assert.equal(concurrent.calls.length, 1);
   const concurrentId = created[0].body.recoveryCase.id;
-  await ready(concurrent, concurrentId);
+  serviceReady(concurrent, concurrentId);
   const completeStarted = deferred();
   const releaseComplete = deferred();
   concurrent.setFetch(async () => {

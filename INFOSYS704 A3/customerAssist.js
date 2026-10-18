@@ -84,7 +84,11 @@ function applyProblem(order, state) {
   return problem ? Object.assign({}, order, { problem, headline: problem.title, summary: problem.title }) : order;
 }
 
-function withProblem(order) {
+function allowsDemoProgress(recoveryCase, mode) {
+  return mode === 'simulate' && recoveryCase.requests && recoveryCase.requests[0] && recoveryCase.requests[0].mode === 'simulate';
+}
+
+function withProblem(order, mode) {
   const state = readState();
   order = applyProblem(order, state);
   const currency = amounts.currencyFor(order);
@@ -120,7 +124,15 @@ function withProblem(order) {
     summary: order.problem ? order.problem.title : order.summary,
     total: recovery.orderTotal(order),
     options: recovery.optionsFor(order, order.problem),
-    recoveryCase: active ? Object.assign({}, active, { outcomeCopy: recovery.outcomeCopy(active, order) }) : null,
+    recoveryCase: active ? Object.assign({}, active, {
+      outcomeCopy: recovery.outcomeCopy(active, order),
+      isSimulated: Boolean(active.requests && active.requests[0] && active.requests[0].mode === 'simulate'),
+      demoControlsAvailable: Boolean(allowsDemoProgress(active, mode) && active.status !== 'closed'),
+      demoAdvanceAllowed: Boolean(allowsDemoProgress(active, mode) && active.status === 'open' && active.stepIndex < active.steps.length - 1),
+      readyForCompletion: recovery.canComplete(active)
+    }) : null,
+    // A response timestamp, never persisted into the case or its history.
+    recoveryCheckedAt: active ? new Date().toISOString() : null,
     sap: {
       salesOrder: order.salesOrder,
       outboundDelivery: order.outboundDelivery,
@@ -370,7 +382,7 @@ async function handleRequest(req, res, ctx) {
     }
 
     if (!action && req.method === 'GET') {
-      sendJson(res, 200, withProblem(order));
+      sendJson(res, 200, withProblem(order, mode));
       return true;
     }
 
@@ -399,7 +411,7 @@ async function handleRequest(req, res, ctx) {
       }
       state.problems[order.id] = reported;
       writeState(state);
-      sendJson(res, 200, withProblem(knownOrder(order.id)));
+      sendJson(res, 200, withProblem(knownOrder(order.id), mode));
       return true;
     }
 
@@ -408,7 +420,7 @@ async function handleRequest(req, res, ctx) {
       delete state.cases[order.id];
       delete state.problems[order.id];
       writeState(state);
-      sendJson(res, 200, withProblem(knownOrder(order.id)));
+      sendJson(res, 200, withProblem(knownOrder(order.id), mode));
       return true;
     }
 
@@ -434,7 +446,7 @@ async function handleRequest(req, res, ctx) {
           sendJson(res, 409, { error: 'A recovery already exists with a different option. Continue your existing recovery.' });
           return true;
         }
-        sendJson(res, 200, withProblem(current));
+        sendJson(res, 200, withProblem(current, mode));
         return true;
       }
       const recoveryCase = recovery.createCase({ order: current, problem: current.problem, option });
@@ -450,13 +462,14 @@ async function handleRequest(req, res, ctx) {
       if (posted.status) recoveryCase.requests[0].status = posted.status;
       state.cases[current.id] = recoveryCase;
       writeState(state);
-      sendJson(res, 200, withProblem(knownOrder(current.id)));
+      sendJson(res, 200, withProblem(knownOrder(current.id), mode));
       return true;
     }
   }
 
-  const caseMatch = pathname.match(/^\/api\/assist\/cases\/([^/]+)\/(advance|complete)$/);
-  if (caseMatch && req.method === 'POST') {
+  const caseMatch = pathname.match(/^\/api\/assist\/cases\/([^/]+)(?:\/(advance|complete))?$/);
+  const readCase = caseMatch && !caseMatch[2] && req.method === 'GET';
+  if (caseMatch && (readCase || (caseMatch[2] && req.method === 'POST'))) {
     const caseId = decodeURIComponent(caseMatch[1]);
     const state = readState();
     const orderId = Object.keys(state.cases).find(keyName => state.cases[keyName].id === caseId);
@@ -464,14 +477,20 @@ async function handleRequest(req, res, ctx) {
       sendJson(res, 404, { error: 'That recovery could not be found.' });
       return true;
     }
-    const order = await resolveOrder(orderId, root, key);
+    // Status refresh is strictly read-only: no SAP lookup/cache population and
+    // no change to progress, timestamps, selection or financial requests.
+    const order = readCase ? knownOrder(orderId, state) : await resolveOrder(orderId, root, key);
     if (!order) {
       sendJson(res, 404, { error: 'We can’t find the order linked to this recovery.' });
       return true;
     }
     const recoveryCase = state.cases[orderId];
+    if (readCase) {
+      sendJson(res, 200, withProblem(order, mode));
+      return true;
+    }
     if (recoveryCase.status === 'closed') {
-      sendJson(res, 200, withProblem(order));
+      sendJson(res, 200, withProblem(order, mode));
       return true;
     }
     // Case scope and financial values are frozen at creation, including for
@@ -485,10 +504,19 @@ async function handleRequest(req, res, ctx) {
       return true;
     }
     if (caseMatch[2] === 'advance') {
+      if (!allowsDemoProgress(recoveryCase, mode)) {
+        sendJson(res, 403, { error: 'Demo updates are only available for simulated recoveries in simulation mode. Live recovery progress cannot be advanced manually.' });
+        return true;
+      }
+      const previousStep = recoveryCase.stepIndex;
       recovery.advance(recoveryCase);
+      if (recoveryCase.stepIndex === previousStep) {
+        sendJson(res, 200, withProblem(order, mode));
+        return true;
+      }
     } else {
       if (!recovery.canComplete(recoveryCase)) {
-        sendJson(res, 409, { error: 'This recovery is not ready to complete. Check for an update first.' });
+        sendJson(res, 409, { error: 'This recovery is not ready to complete. Wait for a recovery update first.' });
         return true;
       }
       recovery.complete(recoveryCase, order, option);
@@ -504,7 +532,7 @@ async function handleRequest(req, res, ctx) {
       if (posted.status) last.status = posted.status;
     }
     writeState(state);
-    sendJson(res, 200, withProblem(knownOrder(order.id)));
+    sendJson(res, 200, withProblem(knownOrder(order.id), mode));
     return true;
   }
 

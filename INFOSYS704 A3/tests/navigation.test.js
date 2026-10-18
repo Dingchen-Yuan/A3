@@ -18,6 +18,10 @@ async function run() {
       assert.match(html, /<title>Kmart Delivery Assist<\/title>/, route);
       assert.match(html, /href="\/supply-hub"/, route);
       assert.match(html, /class="btn secondary home-link" href="\/"/, route);
+      assert.match(html, /class="sidebar app-sidebar" id="sidebar"/, route);
+      assert.match(html, /aria-controls="sidebar" aria-expanded="false"/, route);
+      assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'mixlock', 'deliveries', 'history'], route);
+      assert.ok(html.indexOf('/site-navigation.js') < html.indexOf('/assist/app.js'), route);
     }
     for (const route of ['/supply-hub', '/supply-hub/', '/supply-hub/index.html']) {
       const response = await fetch(base + route);
@@ -25,8 +29,10 @@ async function run() {
       const html = await response.text();
       assert.match(html, /<title>Supply Hub · Kmart Group<\/title>/, route);
       assert.match(html, /href="\/" class="customer-link"/, route);
+      assert.match(html, /class="sidebar app-sidebar" id="sidebar"/, route);
+      assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'mixlock', 'deliveries', 'history'], route);
     }
-    for (const route of ['/assist/styles.css', '/assist/app.js', '/styles.css', '/app.js']) {
+    for (const route of ['/assist/styles.css', '/assist/app.js', '/styles.css', '/app.js', '/site-navigation.css', '/site-navigation.js']) {
       const response = await fetch(base + route);
       assert.equal(response.status, 200, route);
       assert.doesNotMatch(await response.text(), /<!DOCTYPE html>/, route);
@@ -66,6 +72,24 @@ async function run() {
     assert.ok(scopedView.includes('$12.00'));
     assert.ok(scopedView.includes('stay unchanged'));
     assert.equal(vm.runInContext("outcomeText({outcomeCopy:{heading:'Replacement for the selected cover'}}, previewOrder).heading", context), 'Replacement for the selected cover');
+    assert.equal(vm.runInContext("isRecoveryReady({status:'open',stepIndex:0,steps:['Received','Ready']})", context), false);
+    assert.equal(vm.runInContext("isRecoveryReady({status:'ready',stepIndex:0,steps:['Received','Ready']})", context), false);
+    assert.equal(vm.runInContext("isRecoveryReady({status:'ready',stepIndex:1,steps:['Received','Ready'],readyForCompletion:false})", context), false);
+    assert.equal(vm.runInContext("isRecoveryReady({status:'ready',stepIndex:1,steps:['Received','Ready'],readyForCompletion:true})", context), true);
+    assert.equal(vm.runInContext("recoveryDemoControls({demoControlsAvailable:false})", context), '');
+    const demoControls = vm.runInContext("recoveryDemoControls({demoControlsAvailable:true,demoAdvanceAllowed:true,status:'open',stepIndex:0,steps:['Received','Ready']})", context);
+    assert.ok(demoControls.includes('Demo controls · presentation only'));
+    assert.ok(demoControls.includes('id="advanceDemo"'));
+    assert.equal(vm.runInContext("recoveryTime('invalid', 'Not available')", context), 'Not available');
+    const trackingCalls = [];
+    context.fetch = async (url, options = {}) => {
+      trackingCalls.push({ url, method: options.method || 'GET' });
+      return { ok: true, json: async () => ({}) };
+    };
+    for (let index = 0; index < 3; index += 1) await vm.runInContext("readRecoveryStatus('SR/TEST')", context);
+    assert.deepEqual(trackingCalls, Array.from({ length: 3 }, () => ({ url: '/api/assist/cases/SR%2FTEST', method: 'GET' })));
+    await vm.runInContext("applyDemoRecoveryUpdate('SR/TEST')", context);
+    assert.deepEqual(trackingCalls.at(-1), { url: '/api/assist/cases/SR%2FTEST/advance', method: 'POST' });
     assert.equal(vm.runInContext("orderPath('SAP-REF/1 #A', 'choose')", context), '#/order/SAP-REF%2F1%20%23A/choose');
     const routed = vm.runInContext(`
       showScreen = (id, screen) => [id, screen];

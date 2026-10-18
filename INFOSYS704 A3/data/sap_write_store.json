@@ -1,5 +1,402 @@
 [
   {
+    "id": "wr_1792322485872_zu77n0",
+    "kind": "recovery",
+    "refId": "S001",
+    "poNumber": "4500207755",
+    "title": "Accept delay and move the launch – ANKO Knit Throw AW27",
+    "createdAt": "2026-10-18T11:21:25.872Z",
+    "mode": "simulate",
+    "requests": [
+      {
+        "method": "PATCH",
+        "path": "/PurchaseOrderScheduleLine/4500207755/1/1",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrderScheduleLine/4500207755/1/1",
+        "headers": {
+          "Content-Type": "application/json",
+          "If-Match": "<etag from GET>"
+        },
+        "body": {
+          "ScheduleLineDeliveryDate": "2026-11-01"
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207755/_PurchaseOrderNote",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207755/_PurchaseOrderNote",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "TextObjectType": "F01",
+          "Language": "EN",
+          "PlainLongText": "Recovery RC-1001: Arriving 9 days late (Carrier feed (simulated)). Action: Accept delay and move the launch."
+        }
+      }
+    ],
+    "meta": {
+      "product": "ANKO Knit Throw AW27",
+      "problem": "Arriving 9 days late",
+      "action": "Accept delay and move the launch",
+      "units": 171,
+      "value": 1676
+    }
+  },
+  {
+    "id": "wr_1792322475457_fyr0km",
+    "kind": "mixlock",
+    "refId": "L002",
+    "poNumber": "4500207702",
+    "title": "Mix lock – ANKO Cushion Cover 45cm",
+    "createdAt": "2026-10-18T11:21:15.457Z",
+    "mode": "simulate",
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "10",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Black / 100x15",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 132,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 132
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "20",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Black / 130x17",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 96,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 96
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "30",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Black / 150x20",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 72,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 72
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "40",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Sage / 100x150",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 168,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 168
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "50",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Sage / 130x170",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 204,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 204
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "60",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Sage / 150x200",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 120,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 120
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "70",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Cream / 100x15",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 84,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 84
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "80",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Cream / 130x17",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 84,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 84
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "90",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Cream / 150x20",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 60,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 60
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "100",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Terracotta / 1",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 60,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 60
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "110",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Terracotta / 1",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 60,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 60
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderItem",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "PurchaseOrderItem": "120",
+          "PurchaseOrderItemText": "ANKO Cushion Cover 45cm - Terracotta / 1",
+          "Material": "MZ-TG-Y120",
+          "Plant": "1710",
+          "OrderQuantity": 60,
+          "PurchaseOrderQuantityUnit": "PC",
+          "NetPriceAmount": 335.24,
+          "NetPriceQuantity": 1,
+          "DocumentCurrency": "USD",
+          "RequirementTracking": "MIXLOCK",
+          "_PurchaseOrderScheduleLineTP": [
+            {
+              "ScheduleLine": "1",
+              "ScheduleLineDeliveryDate": "2027-02-15",
+              "ScheduleLineOrderQuantity": 60
+            }
+          ]
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/PurchaseOrder/4500207702/_PurchaseOrderNote",
+        "url": "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001/PurchaseOrder/4500207702/_PurchaseOrderNote",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "TextObjectType": "F01",
+          "Language": "EN",
+          "PlainLongText": "Mix locked 2026-10-18 - deferred mix allocation for ANKO Cushion Cover 45cm; 1200 units split by 3-week trial-store sell-through."
+        }
+      }
+    ],
+    "meta": {
+      "lineName": "ANKO Cushion Cover 45cm",
+      "units": 1200,
+      "riskBefore": 962,
+      "riskAfter": 151
+    }
+  },
+  {
     "id": "wr_1792312565627_vwk38q",
     "kind": "mixlock",
     "refId": "L001",

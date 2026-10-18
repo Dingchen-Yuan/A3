@@ -74,8 +74,8 @@ function updateJourney(step) {
     </li>`).join('');
 }
 
-function actions(html) {
-  return `<div class="actions">${html}</div>`;
+function actions(html, extraClass = '') {
+  return `<div class="actions${extraClass ? ' ' + esc(extraClass) : ''}">${html}</div>`;
 }
 
 function paint(html, keepScroll) {
@@ -420,7 +420,37 @@ function renderChoose(order, keepScroll) {
   });
 }
 
-function renderRecovery(order) {
+function isRecoveryReady(recoveryCase) {
+  return recoveryCase.status === 'ready' && recoveryCase.stepIndex === recoveryCase.steps.length - 1 && recoveryCase.readyForCompletion !== false;
+}
+
+function recoveryTime(value, fallback = 'Not checked yet') {
+  const date = value && new Date(value);
+  return date && Number.isFinite(date.getTime())
+    ? date.toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })
+    : fallback;
+}
+
+function recoveryDemoControls(recoveryCase, open = false) {
+  if (!recoveryCase.demoControlsAvailable || recoveryCase.status === 'closed') return '';
+  return `<details class="demo-controls" id="demoControls" ${open ? 'open' : ''}>
+    <summary>Demo controls · presentation only</summary>
+    <div class="demo-controls-body"><p>These controls simulate a supplier or fulfilment update. They are separate from customer status checking and do not send a live carrier update.</p>
+      ${recoveryCase.demoAdvanceAllowed
+        ? `<button class="btn secondary" id="advanceDemo" type="button">Advance demo to “${esc(recoveryCase.steps[recoveryCase.stepIndex + 1])}”</button>`
+        : '<p class="field-hint">All demo updates have been applied. You can review the outcome above.</p>'}
+    </div></details>`;
+}
+
+function readRecoveryStatus(caseId) {
+  return api('/api/assist/cases/' + encodeURIComponent(caseId));
+}
+
+function applyDemoRecoveryUpdate(caseId) {
+  return api('/api/assist/cases/' + encodeURIComponent(caseId) + '/advance', { method: 'POST' });
+}
+
+function renderRecovery(order, { message = '', demoOpen = false, keepScroll = false } = {}) {
   const recoveryCase = order.recoveryCase;
   if (!recoveryCase) {
     location.hash = `#/order/${encodeURIComponent(order.id)}/choose`;
@@ -430,7 +460,7 @@ function renderRecovery(order) {
     location.hash = `#/order/${encodeURIComponent(order.id)}/outcome`;
     return;
   }
-  const ready = recoveryCase.status === 'ready';
+  const ready = isRecoveryReady(recoveryCase);
   const steps = recoveryCase.steps.map((label, index) => {
     const cls = index < recoveryCase.stepIndex ? 'done' : index === recoveryCase.stepIndex ? 'now' : '';
     const mark = index < recoveryCase.stepIndex ? '✓' : index + 1;
@@ -440,29 +470,55 @@ function renderRecovery(order) {
     ${progress(5)}
     <h1>${esc(recoveryCase.steps[recoveryCase.stepIndex])}</h1>
     <p class="lead">Case ${esc(recoveryCase.id)}. This stays here until the recovery is finished.</p>
+    <p class="field-hint">${recoveryCase.isSimulated ? 'This is a simulated recovery.' : 'Showing the saved recovery status; no live carrier feed is connected.'} Refreshing status never moves the recovery forward.</p>
+    <dl class="tracking-times"><div><dt>Last updated</dt><dd id="lastUpdated">${esc(recoveryTime(recoveryCase.updatedAt || recoveryCase.createdAt, 'Not available'))}</dd></div>
+      <div><dt>Last checked</dt><dd id="lastChecked">${esc(recoveryTime(order.recoveryCheckedAt))}</dd></div></dl>
     ${recoveryItems(recoveryCase.affectedItems, recoveryCase.currency || order.currency, recoveryCase.selectionIsPartial)}
     <ol class="steps">${steps}</ol>
+    <p class="tracking-feedback" id="trackingFeedback" role="status" aria-live="polite" ${message ? '' : 'hidden'}>${esc(message)}</p>
     <p class="error" id="err" role="alert" hidden></p>
     ${actions(`
-      <button class="btn block" type="button" id="next">${ready ? 'Review the outcome' : 'Check for an update'}</button>
-      <button class="text-btn" type="button" id="restart">Start this order again</button>`)}`);
-  document.querySelector('#next').addEventListener('click', async () => {
-    if (ready) {
-      location.hash = `#/order/${encodeURIComponent(order.id)}/outcome`;
-      return;
-    }
-    const button = document.querySelector('#next');
-    button.disabled = true;
+      ${ready ? `<a class="btn block" id="reviewOutcome" href="${orderPath(order.id, 'outcome')}">Review the outcome</a>` : ''}
+      <button class="btn ${ready ? 'secondary ' : ''}block" type="button" id="refreshRecovery">Refresh status</button>
+      <button class="text-btn" type="button" id="restart">Start this order again</button>`, 'tracking-actions')}
+    ${recoveryDemoControls(recoveryCase, demoOpen)}`, keepScroll);
+  let busy = false;
+  const setBusy = value => {
+    busy = value;
+    ['#refreshRecovery', '#advanceDemo', '#restart'].forEach(selector => {
+      const button = document.querySelector(selector);
+      if (button) button.disabled = value;
+    });
+  };
+  const refresh = async advanceDemo => {
+    if (busy || (advanceDemo && !recoveryCase.demoAdvanceAllowed)) return;
+    const token = viewToken;
+    const demoWasOpen = Boolean(document.querySelector('#demoControls')?.open);
+    setBusy(true);
+    document.querySelector('#err').hidden = true;
+    document.querySelector('#trackingFeedback').hidden = true;
     try {
-      await api(`/api/assist/cases/${encodeURIComponent(recoveryCase.id)}/advance`, { method: 'POST' });
-      showScreen(order.id, 'recovery');
+      const latest = advanceDemo ? await applyDemoRecoveryUpdate(recoveryCase.id) : await readRecoveryStatus(recoveryCase.id);
+      if (token !== viewToken) return;
+      const updated = latest.recoveryCase;
+      const changed = !updated || updated.id !== recoveryCase.id || updated.stepIndex !== recoveryCase.stepIndex || updated.status !== recoveryCase.status || updated.updatedAt !== recoveryCase.updatedAt;
+      const feedback = advanceDemo
+        ? 'Demo update applied. This was a simulated update, not a live supplier or carrier event.'
+        : changed ? 'Recovery status updated.' : 'No new updates. Your recovery status has not changed.';
+      renderRecovery(latest, { message: feedback, demoOpen: demoWasOpen, keepScroll: true });
+      if (updated && updated.status !== 'closed') {
+        document.querySelector(advanceDemo ? '#advanceDemo, #reviewOutcome, #refreshRecovery' : '#refreshRecovery')?.focus({ preventScroll: true });
+      }
     } catch (err) {
-      button.disabled = false;
+      if (token !== viewToken) return;
+      setBusy(false);
       const slot = document.querySelector('#err');
       slot.hidden = false;
-      slot.textContent = err.message;
+      slot.textContent = `Could not ${advanceDemo ? 'apply the demo update' : 'refresh status'}. ${err.message} The last shown status and checked time have been kept.`;
     }
-  });
+  };
+  document.querySelector('#refreshRecovery').addEventListener('click', () => refresh(false));
+  document.querySelector('#advanceDemo')?.addEventListener('click', () => refresh(true));
   bindRestart(order.id);
 }
 
@@ -511,7 +567,7 @@ function renderOutcome(order) {
     location.hash = `#/order/${encodeURIComponent(order.id)}/choose`;
     return;
   }
-  if (recoveryCase.status === 'open') {
+  if (recoveryCase.status !== 'closed' && !isRecoveryReady(recoveryCase)) {
     location.hash = `#/order/${encodeURIComponent(order.id)}/recovery`;
     return;
   }

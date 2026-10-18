@@ -122,7 +122,10 @@ function crumbs(items) {
   $('#crumbs').innerHTML = items.map((c, i) => (i ? '<span class="sep">/</span>' : '') +
     (c.href ? `<a href="${c.href}">${esc(c.label)}</a>` : `<span>${esc(c.label)}</span>`)).join('');
 }
-function setNav(key) { $$('.nav a').forEach(a => a.classList.toggle('active', a.dataset.nav === key)); $('#sidebar').classList.remove('open'); }
+function setNav(key) {
+  if (window.KmartNavigation) { window.KmartNavigation.setActive(key); window.KmartNavigation.close(); }
+  else { $$('.nav a').forEach(a => a.classList.toggle('active', a.dataset.nav === key)); $('#sidebar').classList.remove('open'); }
+}
 function updateSapChip(st) {
   const chip = $('#sapChip');
   if (!st) return;
@@ -826,7 +829,6 @@ function refreshNavCount() { api('/api/deliveries').then(d => { updateNavCount(d
 
 function initShell() {
   $('#navToggle').innerHTML = icon('menu');
-  $('#navToggle').onclick = () => $('#sidebar').classList.toggle('open');
   $('.nav a[data-nav="mixlock"]').innerHTML = icon('grid') + 'Mix-Lock';
   $('.nav a[data-nav="deliveries"]').innerHTML = icon('truck') + 'Delivery Tracker<span class="count" hidden></span>';
   $('.nav a[data-nav="history"]').innerHTML = icon('history') + 'History';

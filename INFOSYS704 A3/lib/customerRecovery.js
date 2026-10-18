@@ -175,7 +175,7 @@ function createCase({ order, problem, option }) {
 }
 
 function advance(recoveryCase) {
-  if (!recoveryCase || recoveryCase.status === 'closed') return recoveryCase;
+  if (!recoveryCase || recoveryCase.status === 'closed' || recoveryCase.stepIndex >= recoveryCase.steps.length - 1) return recoveryCase;
   if (recoveryCase.stepIndex < recoveryCase.steps.length - 1) {
     recoveryCase.stepIndex += 1;
   }
@@ -193,7 +193,7 @@ function canComplete(recoveryCase) {
 function complete(recoveryCase, order, option) {
   if (recoveryCase && recoveryCase.status === 'closed') return recoveryCase;
   if (!canComplete(recoveryCase)) {
-    throw new Error('This recovery is not ready to complete. Check for an update first.');
+    throw new Error('This recovery is not ready to complete. Wait for a recovery update first.');
   }
   recoveryCase.stepIndex = recoveryCase.steps.length - 1;
   recoveryCase.status = 'closed';

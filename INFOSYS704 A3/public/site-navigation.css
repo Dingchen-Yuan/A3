@@ -1,0 +1,81 @@
+/* Shared application navigation. Keep it visible in tablet/preview widths;
+   only phone-sized screens use the drawer. Loaded after each page's styles. */
+:root { --workspace-header-height: 76px; --workspace-sidebar-width: 244px; --topbar: var(--workspace-header-height); }
+.top, .topbar { height: var(--workspace-header-height); min-height: var(--workspace-header-height); padding: 0 28px; z-index: 80; }
+.workspace-shell { display: grid; grid-template-columns: var(--workspace-sidebar-width) minmax(0, 1fr); gap: 0; width: 100%; max-width: none; min-height: calc(100vh - var(--workspace-header-height)); margin: 0; align-items: start; }
+.sidebar.app-sidebar { position: sticky; top: var(--workspace-header-height); display: flex; flex-direction: column; width: var(--workspace-sidebar-width); height: calc(100vh - var(--workspace-header-height)); height: calc(100dvh - var(--workspace-header-height)); min-width: 0; overflow-y: auto; background: #192b3c; color: #d5dfea; transform: none; visibility: visible; z-index: 20; }
+.app-sidebar .workspace-heading { display: flex; align-items: center; gap: 11px; padding: 26px 22px 10px; color: #fff; }
+.app-sidebar .workspace-symbol { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border: 1px solid #4b5d70; border-radius: 9px; background: #293e53; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.app-sidebar .workspace-heading strong { display: block; font-size: 12px; font-weight: 600; }
+.app-sidebar .workspace-heading div > span { display: block; margin-top: 2px; color: #adbccc; font-size: 10px; }
+.sidebar-close { display: none; align-items: center; justify-content: center; width: 32px; height: 36px; flex: none; margin-left: auto; padding: 7px; border: 1px solid #60758a; border-radius: 6px; background: transparent; color: #fff; cursor: pointer; }
+.sidebar-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.app-sidebar .nav { display: flex; flex-direction: column; gap: 4px; flex: none; padding: 10px 14px 24px; }
+.app-sidebar .nav-label { padding: 18px 12px 5px; color: #adbccc; font-size: 10px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; }
+.app-sidebar .nav a { position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 12px; border-radius: 8px; color: #d5dfea; font-size: 13px; font-weight: 500; line-height: 1.5; text-decoration: none; }
+.app-sidebar .nav a:hover { background: #293e53; color: #fff; }
+.app-sidebar .nav a.active { background: #fff; color: #b90024; font-weight: 650; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.app-sidebar .nav a.active::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: #e4002b; }
+.app-sidebar .nav svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.app-sidebar .nav .nav-arrow { width: 14px; height: 14px; margin-left: auto; }
+.app-sidebar .sidebar-foot { margin-top: auto; padding: 22px; border-top: 1px solid #35485c; color: #adbccc; font-size: 11px; line-height: 1.8; }
+.app-sidebar .sidebar-foot p { margin: 0; }
+.sidebar-journey { margin: 0 14px 24px; border: 1px solid #4b5d70; border-radius: 8px; color: #d5dfea; }
+.sidebar-journey summary { padding: 14px 12px; color: #d5dfea; font-size: 12px; font-weight: 600; cursor: pointer; }
+.app-sidebar .journey-list { gap: 2px; padding: 0 6px 8px; }
+.app-sidebar .journey-list li { gap: 8px; min-height: 48px; padding: 8px 6px; color: #adbccc; font-size: 11px; }
+.app-sidebar .journey-number { width: 26px; height: 26px; border-color: #60758a; background: #293e53; color: #d5dfea; font-size: 10px; }
+.app-sidebar .journey-list li.current { border-color: #60758a; background: #293e53; color: #fff; }
+.app-sidebar .journey-list li.current .journey-number { border-color: #e4002b; background: #e4002b; color: #fff; }
+.app-sidebar .journey-list li.done { color: #e5edf5; }
+.app-sidebar .journey-list li.done .journey-number { border-color: #9cdbb9; background: #204a39; color: #b4e5c9; }
+.customer-content { min-width: 0; width: 100%; padding: 28px 32px 40px; }
+.customer-content > main { max-width: 1000px; margin: 0 auto; }
+.customer-content .assist-footer { width: 100%; max-width: 1000px; margin: 24px auto 0; padding-bottom: 0; }
+.workspace-shell > .content { width: 100%; }
+.nav-toggle { display: none; align-items: center; justify-content: center; width: 36px; height: 40px; flex: none; padding: 7px; border: 1px solid #d7dfe8; border-radius: 8px; background: #fff; color: #192b3c; cursor: pointer; }
+.nav-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.navigation-backdrop { position: fixed; top: var(--workspace-header-height); right: 0; bottom: 0; left: 0; z-index: 60; padding: 0; border: 0; background: rgba(15, 27, 40, .42); cursor: pointer; }
+.navigation-backdrop[hidden] { display: none; }
+
+@media (max-width: 1200px) {
+  .customer-content .order-grid, .customer-content .choice-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 1100px) {
+  :root { --workspace-sidebar-width: 216px; }
+  .customer-content { padding: 24px 20px 36px; }
+  .customer-content > main { padding: 26px 24px; }
+  .app-sidebar .workspace-heading { padding-left: 18px; padding-right: 18px; }
+}
+@media (max-width: 640px) {
+  :root { --workspace-header-height: 68px; --workspace-sidebar-width: 260px; }
+  .top, .topbar { padding: 0 14px; gap: 12px; }
+  .nav-toggle { display: inline-flex; }
+  .sidebar-close { display: inline-flex; }
+  .workspace-shell { grid-template-columns: minmax(0, 1fr); }
+  .sidebar.app-sidebar { position: fixed; left: 0; z-index: 70; max-width: calc(100vw - 40px); transform: translateX(-100%); visibility: hidden; pointer-events: none; }
+  .sidebar.app-sidebar.open { transform: none; visibility: visible; pointer-events: auto; box-shadow: 8px 0 32px rgba(15,27,40,.15); }
+  body.navigation-open { overflow: hidden; }
+  .customer-content { padding: 18px 14px 28px; }
+  .customer-content > main { padding: 24px 20px; }
+  .top-brand { gap: 12px; }
+  .top .brand img { width: 76px; }
+  .top .product { padding-left: 12px; }
+  .top .product strong { font-size: 12px; }
+  .top .product > span { display: none; }
+  .top .home-link { padding: 0 10px; font-size: 11px; }
+}
+@media (max-width: 420px) {
+  .top .home-link > span[aria-hidden] { display: none; }
+}
+@media (max-width: 380px) {
+  .top, .topbar { padding: 0 12px; gap: 8px; }
+  .top-brand { gap: 8px; }
+  .top .brand img { width: 65px; }
+  .top .product { padding-left: 8px; }
+  .top .product strong { font-size: 11px; }
+  .top .home-link { padding: 0 8px; font-size: 10px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar.app-sidebar { transition: transform .18s ease; }
+}

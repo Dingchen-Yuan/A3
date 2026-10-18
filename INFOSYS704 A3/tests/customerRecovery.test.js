@@ -65,8 +65,10 @@ assert.strictEqual(created.status, 'open');
 recovery.advance(created);
 assert.strictEqual(created.status, 'ready');
 assert.strictEqual(recovery.canComplete(created), true);
+const readySnapshot = JSON.stringify(created);
 recovery.advance(created);
 assert.strictEqual(created.stepIndex, created.steps.length - 1);
+assert.strictEqual(JSON.stringify(created), readySnapshot);
 
 const refund = recovery.optionById(damaged, damaged.problem, 'refund');
 const refundCase = recovery.createCase({ order: damaged, problem: damaged.problem, option: refund });

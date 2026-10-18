@@ -9,10 +9,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
 <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
 <link rel="stylesheet" href="/styles.css" />
+<link rel="stylesheet" href="/site-navigation.css" />
 </head>
 <body>
 <header class="topbar">
-  <button class="icon-btn nav-toggle" id="navToggle" aria-label="Toggle navigation"></button>
+  <button class="icon-btn nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false"></button>
   <a class="brand" href="#/mixlock" aria-label="Supply Hub home">
     <img class="brand-logo" src="/assets/kmart-logo.png" alt="Kmart" onerror="this.style.display='none';document.getElementById('brandMark').hidden=false;" />
     <span class="brand-mark" id="brandMark" hidden>SH</span>
@@ -26,26 +27,25 @@
   </div>
 </header>
 
-<div class="layout">
-  <aside class="sidebar" id="sidebar">
-    <div class="workspace-heading"><span class="workspace-symbol" aria-hidden="true">SH</span><div><strong>Supply operations</strong><span>Anko workspace</span></div></div>
-    <nav class="nav" aria-label="Supply Hub">
-      <div class="nav-label">Buying</div>
-      <a href="#/mixlock" data-nav="mixlock"></a>
-      <div class="nav-label">Inbound</div>
-      <a href="#/deliveries" data-nav="deliveries"></a>
-      <div class="nav-label">Audit</div>
-      <a href="#/history" data-nav="history"></a>
+<button class="navigation-backdrop" id="navBackdrop" type="button" aria-label="Close navigation" hidden></button>
+<div class="layout workspace-shell">
+  <aside class="sidebar app-sidebar" id="sidebar" aria-label="Kmart workspace navigation">
+    <div class="workspace-heading"><span class="workspace-symbol" aria-hidden="true">KM</span><div><strong>Kmart workspace</strong><span>Customer &amp; buyer tools</span></div><button class="sidebar-close" type="button" aria-label="Close navigation" data-close-navigation data-navigation-dismiss><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button></div>
+    <nav class="nav" aria-label="Main navigation">
       <div class="nav-label">Customer</div>
-      <a href="/" class="customer-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" /></svg>Delivery Assist<svg class="i i-sm nav-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></a>
+      <a href="/" class="customer-link" data-nav="assist"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" /></svg>Delivery Assist<svg class="i i-sm nav-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg></a>
+      <div class="nav-label">Buyer tools</div>
+      <a href="#/mixlock" data-nav="mixlock"></a>
+      <a href="#/deliveries" data-nav="deliveries"></a>
+      <a href="#/history" data-nav="history"></a>
     </nav>
     <div class="sidebar-foot">
-      <button class="link-btn" id="resetDemo"></button>
+      <button class="link-btn" id="resetDemo" type="button" data-close-navigation></button>
       <p>Prototype · SAP S/4HANA Purchase Order API (sandbox). Writes are simulated.</p>
     </div>
   </aside>
 
-  <main class="content">
+  <main class="content" data-navigation-content>
     <div class="crumbs" id="crumbs"></div>
     <div id="app"><div class="loading"><span class="spinner"></span> Loading…</div></div>
   </main>
@@ -56,6 +56,7 @@
 
 <script src="/vendor/leaflet/leaflet.js"></script>
 <script src="/allocation.js"></script>
+<script src="/site-navigation.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
