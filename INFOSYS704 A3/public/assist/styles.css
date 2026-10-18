@@ -123,11 +123,11 @@ h1 { margin: 24px 0 0; font-size: clamp(29px, 3vw, 40px); line-height: 1.2; lett
 .card-link, .panel, .choice { display: block; min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: inherit; text-align: left; text-decoration: none; }
 .card-link { width: 100%; transition: border-color .15s, box-shadow .15s, transform .15s; }
 .card-link:hover { transform: translateY(-2px); border-color: #d7a5b0; box-shadow: 0 6px 18px rgba(25, 43, 60, .06); }
-.card-link > strong, .choice > strong { display: block; font-size: 15px; line-height: 1.5; font-weight: 650; letter-spacing: -.025em; }
+.card-link > strong, .choice > strong { display: block; font-size: 15px; line-height: 1.5; font-weight: 650; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .order-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .product-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border: 1px solid #e9edf2; border-radius: 10px; background: #f6f8fb; color: #435b73; }
 .product-icon .icon { width: 23px; height: 23px; }
-.order-reference { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .035em; }
+.order-reference { min-width: 0; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .035em; overflow-wrap: anywhere; }
 .order-card-top > .icon { width: 17px; height: 17px; margin-left: auto; color: #758497; }
 .order-status { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 5px 9px; border-radius: 6px; font-size: 11px; font-weight: 650; line-height: 1.6; }

@@ -44,7 +44,29 @@ async function run() {
       });
       assert.equal(redirected, '/supply-hub' + hash);
     }
-    console.log('Navigation passed: customer home, buyer workspace, assets and legacy bookmarks.');
+    const context = vm.createContext({
+      document: { querySelector: () => ({}) }, window: { addEventListener() {} },
+      location: { hash: '#/mixlock', replace() {} },
+      previewOrder: { currency: 'USD', total: 20, items: [{ name: '<Storage box>', qty: 2, price: 20, lineTotal: 20 }] },
+      previewCase: { status: 'closed', outcome: 'refund', amount: 20, currency: 'USD' }
+    });
+    vm.runInContext(source, context);
+    const expectedMoney = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'USD' }).format(20);
+    const items = vm.runInContext('itemList(previewOrder)', context);
+    assert.ok(items.includes(expectedMoney));
+    assert.ok(items.includes('2 units'));
+    assert.ok(items.includes('&lt;Storage box&gt;'));
+    assert.ok(!items.includes(new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'USD' }).format(40)));
+    assert.equal(vm.runInContext('outcomeText(previewCase, previewOrder).heading', context), expectedMoney + ' refund confirmed');
+    assert.equal(vm.runInContext("orderPath('SAP-REF/1 #A', 'choose')", context), '#/order/SAP-REF%2F1%20%23A/choose');
+    const routed = vm.runInContext(`
+      showScreen = (id, screen) => [id, screen];
+      location.hash = '#/order/SAP-REF%2F1%20%23A/choose';
+      JSON.stringify(route());
+    `, context);
+    assert.equal(routed, JSON.stringify(['SAP-REF/1 #A', 'choose']));
+    assert.match(vm.runInContext("showHome = message => message; location.hash = '#/order/%E0%A4'; route();", context), /link is not valid/);
+    console.log('Navigation and customer views passed: aliases, encoded IDs, line totals, currencies and legacy bookmarks.');
   } finally {
     const closed = new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     server.closeIdleConnections?.();

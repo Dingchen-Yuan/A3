@@ -116,6 +116,14 @@ Delivery Assist is the default experience at [http://localhost:3000](http://loca
 
 A delay finishes as a replacement or a refund. The service request uses `OP_API_SERVICE_REQUEST_SRV_0001`. `API_BILLING_DOCUMENT_REQUEST_SRV` is not used to create a refund. Sales orders are read with `API_SALES_ORDER_SRV`, `$top=5`, `$select` and `$expand=to_Item`, using the same `SAP_API_KEY`. The sandbox root is taken from `SAP_BASE_URL` by dropping the purchase-order path.
 
+### SAP orders and amounts
+
+- Sales-order numbers and customer references use one shared lookup. SAP orders receive stable internal IDs such as `SAP-990001`; the original sales-order number and customer reference remain searchable aliases.
+- Successful reads save an order snapshot in the git-ignored `data/customer_state.json`. The same snapshot is used for reporting, recovery, reopening and the recent-orders list, including after a server restart or when SAP is unavailable. Lookups reuse that snapshot rather than automatically refreshing prices; its read time is shown under SAP connection details.
+- Restarting an order or resetting customer recovery clears problems/cases but keeps saved SAP order snapshots. Existing demo-only state files remain compatible.
+- SAP `NetAmount` is a **line total**, not a unit price. Two units with `NetAmount=20.00` therefore total 20.00, not 40.00. Totals use integer minor-unit arithmetic, and the original transaction currency is kept in the UI and recovery request (including currencies with zero or three decimal places).
+- Missing/invalid amounts, quantities or currencies are rejected instead of creating zero-valued refund orders. Ambiguous customer references require a sales-order number rather than selecting an arbitrary order.
+
 ### Recovery safeguards
 
 - A case can only complete after reaching its final recovery step (`ready`).
@@ -124,16 +132,17 @@ A delay finishes as a replacement or a refund. The service request uses `OP_API_
 - In `live` mode, missing credentials, SAP errors and timeouts return an error rather than silently switching to simulation. Failed creation saves no confirmed case; failed completion leaves the case ready to retry.
 - Reporting another problem or choosing a different option cannot silently erase an existing case. Restarting remains an explicit demo action.
 
-Refund/replacement confirmations are prototype outcomes, not actual payments or replacement dispatches. These safeguards do not add a payment integration or resolve the separate SAP-only order lookup and line-total mapping limitations.
+Refund/replacement confirmations are prototype outcomes, not actual payments or replacement dispatches. SAP amounts are the supplied net line amounts; this is not a tax, shipping or payment-settlement integration. Carrier updates and the selection of specific items/quantities for newly reported problems are separate improvements.
 
 ### Tests
 
 ```bash
 node tests/customerRecovery.test.js
+node tests/customerAmounts.test.js
 node tests/customerAssist.test.js
 node tests/navigation.test.js
 ```
 
-The API safeguard tests use in-memory state and mocked SAP responses. Navigation tests use a temporary local port. Neither test resets your saved demo state or sends SAP writes.
+The API tests use in-memory state and mocked SAP responses, including SAP-only orders through lookup, reporting, recovery, restart and reopening. Amount tests cover multi-unit lines, multiple items, partial refunds, decimal precision and currencies. Navigation/view tests check encoded IDs and displayed totals/currencies using a temporary local port. None of these tests resets your saved demo state or sends real SAP writes.
 
 Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.

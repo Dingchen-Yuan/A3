@@ -17,8 +17,12 @@ function esc(value) {
   }[ch]));
 }
 
-function money(n) {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Number(n) || 0);
+function money(n, currency = 'AUD') {
+  return new Intl.NumberFormat('en-AU', { style: 'currency', currency }).format(Number(n) || 0);
+}
+
+function orderPath(id, screen) {
+  return '#/order/' + encodeURIComponent(id) + (screen ? '/' + screen : '');
 }
 
 const ICONS = {
@@ -88,7 +92,12 @@ function paint(html, keepScroll) {
 }
 
 function route() {
-  const parts = (location.hash || '#/').replace(/^#\/?/, '').split('/').filter(Boolean);
+  let parts;
+  try {
+    parts = (location.hash || '#/').replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+  } catch (err) {
+    return showHome('That order link is not valid. Please search for your order again.');
+  }
   const [head, id, screen] = parts;
   // Keep old Supply Hub bookmarks working after Delivery Assist becomes home.
   if (['mixlock', 'line', 'adjust', 'confirm', 'locked', 'deliveries', 'delivery', 'case', 'history'].includes(head)) {
@@ -113,9 +122,10 @@ async function showHome(message) {
   }
   if (token !== viewToken) return;
   const cards = orders.map(order => `
-    <a class="card-link" href="#/order/${esc(order.id)}">
-      <div class="order-card-top"><span class="product-icon">${icon(productIcon(order.item))}</span><span class="order-reference">${esc(order.id)}</span>${icon('right')}</div>
+    <a class="card-link" href="${orderPath(order.id)}">
+      <div class="order-card-top"><span class="product-icon">${icon(productIcon(order.item))}</span><span class="order-reference">${esc(order.customerReference || order.id)}</span>${icon('right')}</div>
       <strong>${esc(order.item)}</strong>
+      ${order.source === 'sap' ? `<div class="meta">Sales order ${esc(order.salesOrder)}</div>` : ''}
       <div class="meta">Promised ${esc(order.promise)}</div>
       <div class="order-status"><span class="pill ${order.tone === 'problem' ? 'problem' : 'ok'}">${esc(order.summary)}</span>
       ${order.caseLabel ? `<span class="pill ${order.caseStatus === 'closed' ? 'ok' : 'problem'}">${esc(order.caseLabel)}</span>` : ''}</div>
@@ -174,7 +184,7 @@ function itemList(order) {
     <div class="fact">
       <span>${item.damaged ? 'Needs attention' : 'In this order'}</span>
       <strong>${esc(item.name)}</strong>
-      <span>${money(item.price * item.qty)}</span>
+      <span>${esc(item.qty)} ${Number(item.qty) === 1 ? 'unit' : 'units'} · ${money(item.lineTotal != null ? item.lineTotal : item.price * item.qty, order.currency)}</span>
     </div>`).join('');
 }
 
@@ -190,16 +200,19 @@ function renderUnderstand(order) {
   const existing = order.recoveryCase;
   const problem = order.problem;
   const closed = existing && existing.status === 'closed';
+  const sourceSummary = order.source === 'sap'
+    ? `${order.cached ? 'Saved SAP order snapshot' : 'Order read from SAP'}${order.sapReadAt ? ' · ' + new Date(order.sapReadAt).toLocaleString('en-AU') : ''}. Amounts are SAP net line values. Delivery milestones are not a live carrier feed.`
+    : 'Demo order and delivery timeline.';
   let next = '';
   let banner = '';
   if (closed) {
-    next = `<a class="btn block" href="#/order/${esc(order.id)}/outcome">View the outcome</a>`;
-    banner = `<div class="banner">This recovery is finished. <a href="#/order/${esc(order.id)}/outcome">View the outcome</a>.</div>`;
+    next = `<a class="btn block" href="${orderPath(order.id, 'outcome')}">View the outcome</a>`;
+    banner = `<div class="banner">This recovery is finished. <a href="${orderPath(order.id, 'outcome')}">View the outcome</a>.</div>`;
   } else if (existing) {
-    next = `<a class="btn block" href="#/order/${esc(order.id)}/recovery">Continue your recovery</a>`;
-    banner = `<div class="banner">A recovery is already open for this order. <a href="#/order/${esc(order.id)}/recovery">Continue it</a>.</div>`;
+    next = `<a class="btn block" href="${orderPath(order.id, 'recovery')}">Continue your recovery</a>`;
+    banner = `<div class="banner">A recovery is already open for this order. <a href="${orderPath(order.id, 'recovery')}">Continue it</a>.</div>`;
   } else if (problem) {
-    next = `<a class="btn block" href="#/order/${esc(order.id)}/problem">See the problem</a>`;
+    next = `<a class="btn block" href="${orderPath(order.id, 'problem')}">See the problem</a>`;
   } else {
     next = `<button class="btn secondary block" type="button" id="wrong">Something’s wrong</button>`;
   }
@@ -211,12 +224,13 @@ function renderUnderstand(order) {
     <section class="detail-section"><h2 class="section-title">Delivery timeline</h2>${timeline(order)}</section>
     <section class="detail-section"><h2 class="section-title">Items in this order</h2><div class="facts">${itemList(order)}</div></section>
     <section class="detail-section"><h2 class="section-title">Order details</h2><div class="facts">
+      <div class="fact"><span>Order reference</span><strong>${esc(order.customerReference || order.id)}</strong></div>
       <div class="fact"><span>Sales order</span><strong>${esc(order.salesOrder)}</strong></div>
       <div class="fact"><span>Delivery</span><strong>${esc(order.outboundDelivery || '—')}</strong></div>
       <div class="fact"><span>Freight order</span><strong>${esc(order.freightOrder || '—')}</strong></div>
       <div class="fact"><span>Packed at</span><strong>${esc(order.node)}</strong></div>
     </div></section>
-    <details class="integration-info"><summary>SAP connection details</summary><p class="meta" id="sapline" data-order="${esc(order.id)}">Checking the SAP sales-order API…</p></details>
+    <details class="integration-info"><summary>SAP connection details</summary><p class="meta">${esc(sourceSummary)}</p><p class="meta" id="sapline" data-order="${esc(order.id)}">Checking the SAP sales-order API…</p></details>
     ${actions(`${next}<a class="text-btn" href="#/">Back to my orders</a>`)}
     <div id="report"></div>`);
   api('/api/assist/sap/sales-orders').then(sap => {
@@ -277,10 +291,10 @@ function renderProblem(order) {
     <div class="issue-symbol" aria-hidden="true">${icon('alert')}</div>
     <h1>${esc(order.problem.title)}</h1>
     <p class="lead">${esc(order.problem.detail)}</p>
-    <div class="banner">Found ${esc(order.problem.foundAt)}. Order ${esc(order.id)}.</div>
+    <div class="banner">Found ${esc(order.problem.foundAt)}. Order ${esc(order.customerReference || order.id)}.</div>
     ${actions(`
-      <a class="btn block" href="#/order/${esc(order.id)}/choose">This is the problem</a>
-      <a class="text-btn" href="#/order/${esc(order.id)}">Back</a>`)}`);
+      <a class="btn block" href="${orderPath(order.id, 'choose')}">This is the problem</a>
+      <a class="text-btn" href="${orderPath(order.id)}">Back</a>`)}`);
 }
 
 function renderChoose(order, keepScroll) {
@@ -308,7 +322,7 @@ function renderChoose(order, keepScroll) {
     <p class="error" id="err" role="alert" hidden></p>
     ${actions(`
       <button class="btn block" type="button" id="go">${current && current.id === 'refund' ? 'Continue with refund' : 'Continue'}</button>
-      <a class="text-btn" href="#/order/${esc(order.id)}/problem">Back</a>`)}`, keepScroll);
+      <a class="text-btn" href="${orderPath(order.id, 'problem')}">Back</a>`)}`, keepScroll);
   document.querySelector('#choices').addEventListener('click', event => {
     const button = event.target.closest('[data-option]');
     if (!button) return;
@@ -388,7 +402,7 @@ function outcomeText(recoveryCase, order) {
       ? 'That item only, back to your original payment. The rest of the order stays as it is.'
       : 'Back to your original payment. This order will not be delivered.');
     return {
-      heading: closed ? `${money(recoveryCase.amount)} refund confirmed` : `Refund ${money(recoveryCase.amount)}`,
+      heading: closed ? `${money(recoveryCase.amount, recoveryCase.currency || order.currency)} refund confirmed` : `Refund ${money(recoveryCase.amount, recoveryCase.currency || order.currency)}`,
       lead,
       confirm: 'Confirm refund'
     };
@@ -446,7 +460,7 @@ function renderOutcome(order) {
     <p class="error" id="err" role="alert" hidden></p>
     ${actions(closed
       ? `<a class="btn block" href="#/">Back to my orders</a><button class="text-btn" type="button" id="restart">Start this order again</button>`
-      : `<button class="btn block" type="button" id="confirm">${esc(copy.confirm)}</button><a class="text-btn" href="#/order/${esc(order.id)}/recovery">Back</a>`)}`);
+      : `<button class="btn block" type="button" id="confirm">${esc(copy.confirm)}</button><a class="text-btn" href="${orderPath(order.id, 'recovery')}">Back</a>`)}`);
   const confirm = document.querySelector('#confirm');
   if (confirm) {
     confirm.addEventListener('click', async () => {

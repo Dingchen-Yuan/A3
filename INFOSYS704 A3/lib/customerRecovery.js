@@ -5,6 +5,7 @@
 // so the financial outcome is confirmed here and linked to the sales order.
 
 const SERVICE_API = 'OP_API_SERVICE_REQUEST_SRV_0001';
+const amounts = require('./customerAmounts');
 
 const STEP_COPY = {
   redeliver: [
@@ -29,18 +30,18 @@ const STEP_COPY = {
   ]
 };
 
-function money(n) {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Number(n) || 0);
-}
+const money = amounts.money;
 
 function orderTotal(order) {
-  return (order.items || []).reduce((sum, item) => sum + item.price * item.qty, 0);
+  const currency = amounts.currencyFor(order);
+  return amounts.fromMinor(amounts.sumMinor(order.items, currency), currency);
 }
 
 function affectedTotal(order) {
   const damaged = (order.items || []).filter(item => item.damaged);
   const basis = damaged.length ? damaged : (order.items || []);
-  return basis.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const currency = amounts.currencyFor(order);
+  return amounts.fromMinor(amounts.sumMinor(basis, currency), currency);
 }
 
 function refundDetail(order, amount) {
@@ -53,6 +54,7 @@ function refundDetail(order, amount) {
 
 function optionsFor(order, problem) {
   if (!problem) return [];
+  const currency = amounts.currencyFor(order);
   const full = orderTotal(order);
   const affected = affectedTotal(order);
   const itemName = (order.items.find(item => item.damaged) || order.items[0]).name;
@@ -77,7 +79,7 @@ function optionsFor(order, problem) {
       },
       {
         id: 'refund',
-        title: `Refund ${money(full)}`,
+        title: `Refund ${money(full, currency)}`,
         detail: refundDetail(order, full),
         recommended: false,
         outcome: 'refund',
@@ -97,7 +99,7 @@ function optionsFor(order, problem) {
     },
     {
       id: 'refund',
-      title: `Refund ${money(affected)}`,
+      title: `Refund ${money(affected, currency)}`,
       detail: refundDetail(order, affected),
       recommended: false,
       outcome: 'refund',
@@ -126,8 +128,8 @@ function serviceRequestBody({ recoveryCase, order, option, action }) {
     SalesOrder: order.salesOrder,
     ServiceRequestPriority: option.id === 'refund' ? '1' : '3',
     ResolutionCode: option.outcome.toUpperCase(),
-    RequestedAmount: option.amount,
-    TransactionCurrency: 'AUD',
+    RequestedAmount: recoveryCase.amount != null ? recoveryCase.amount : option.amount,
+    TransactionCurrency: recoveryCase.currency || amounts.currencyFor(order),
     ServiceRequestStatus: action === 'complete' ? 'Completed' : 'InProcess'
   };
 }
@@ -136,11 +138,14 @@ function createCase({ order, problem, option }) {
   const recoveryCase = {
     id: newCaseId(order.id),
     orderId: order.id,
+    salesOrder: order.salesOrder,
     optionId: option.id,
     outcome: option.outcome,
     title: option.title,
     detail: option.detail,
     amount: option.amount,
+    amountMinor: amounts.toMinor(option.amount, amounts.currencyFor(order)),
+    currency: amounts.currencyFor(order),
     stepIndex: 0,
     steps: STEP_COPY[option.id],
     status: 'open',
@@ -183,7 +188,7 @@ function complete(recoveryCase, order, option) {
   recoveryCase.updatedAt = new Date().toISOString();
   recoveryCase.closedAt = recoveryCase.updatedAt;
   const body = serviceRequestBody({ recoveryCase, order, option, action: 'complete' });
-  body.settlement = option.amount > 0
+  body.settlement = recoveryCase.amount > 0
     ? 'Customer refund confirmed in Delivery Assist and linked to the sales order. API_BILLING_DOCUMENT_REQUEST_SRV cannot create a refund document.'
     : 'No billing document. The sales order stays open for the replacement, redelivery or collection.';
   recoveryCase.requests.push({ at: recoveryCase.updatedAt, mode: 'simulate', body });
@@ -194,7 +199,7 @@ function outcomeCopy(recoveryCase, order) {
   const item = (order.items.find(entry => entry.damaged) || order.items[0]).name;
   if (recoveryCase.outcome === 'refund') {
     return {
-      heading: `${money(recoveryCase.amount)} refund confirmed`,
+      heading: `${money(recoveryCase.amount, recoveryCase.currency || amounts.currencyFor(order))} refund confirmed`,
       lead: recoveryCase.detail || refundDetail(order, recoveryCase.amount),
       confirm: 'Confirm refund',
       done: 'Refund confirmed'

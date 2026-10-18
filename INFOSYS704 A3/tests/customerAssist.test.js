@@ -14,8 +14,8 @@ function sapResponse(status = 201) {
   return { ok: status >= 200 && status < 300, status, text: async () => '{}' };
 }
 
-function harness({ mode = 'simulate', key = '', fetchImpl } = {}) {
-  let saved = JSON.stringify({ cases: {}, problems: {} });
+function harness({ mode = 'simulate', key = '', fetchImpl, initialState = { cases: {}, problems: {} } } = {}) {
+  let saved = JSON.stringify(initialState);
   let writes = 0;
   let fetcher = fetchImpl || (() => { throw new Error('Unexpected SAP call'); });
   const calls = [];
@@ -33,7 +33,7 @@ function harness({ mode = 'simulate', key = '', fetchImpl } = {}) {
   const sandbox = {
     module: { exports: {} },
     require: name => name === 'fs' ? memoryFs : localRequire(name),
-    __dirname: path.dirname(filename), URL, AbortSignal,
+    __dirname: path.dirname(filename), URL, URLSearchParams, AbortSignal,
     fetch: async (url, options) => {
       calls.push({ url, options });
       return fetcher(url, options);
@@ -76,6 +76,22 @@ function deferred() {
   let resolve;
   const promise = new Promise(done => { resolve = done; });
   return { promise, resolve };
+}
+
+function sapOrder(overrides = {}) {
+  return {
+    SalesOrder: '990001', PurchaseOrderByCustomer: 'KM-SAP-100', SoldToParty: '1001',
+    TransactionCurrency: 'USD', RequestedDeliveryDate: '2026-10-21',
+    to_Item: { results: [
+      { SalesOrderItem: '10', Material: 'BOX', SalesOrderItemText: 'Storage boxes', RequestedQuantity: '2.000', NetAmount: '20.00' },
+      { SalesOrderItem: '20', Material: 'COVER', SalesOrderItemText: 'Covers', RequestedQuantity: '3.000', NetAmount: '5.55' }
+    ] },
+    ...overrides
+  };
+}
+
+function sapRead(data, status = 200) {
+  return { ok: status >= 200 && status < 300, status, text: async () => JSON.stringify(data) };
 }
 
 async function run() {
@@ -215,7 +231,166 @@ async function run() {
   await Promise.all([open(differentOrders, 'KM185002'), open(differentOrders, 'KM184866')]);
   assert.equal(Object.keys(differentOrders.state().cases).length, 2);
 
-  console.log('Customer Assist API safeguards passed (in-memory state, mocked SAP).');
+  // A SAP-only order keeps one identity across both customer/sales aliases,
+  // reporting, recovery, process restarts and reopening without a working SAP key.
+  const sap = harness({ key: 'test-key', fetchImpl: () => sapRead({ d: sapOrder() }) });
+  const found = await sap.request('/api/assist/orders/990001', {}, 'GET');
+  assert.equal(found.status, 200);
+  const sapId = found.body.id;
+  assert.equal(sapId, 'SAP-990001');
+  assert.equal(found.body.customerReference, 'KM-SAP-100');
+  assert.equal(found.body.currency, 'USD');
+  assert.equal(found.body.total, 25.55);
+  assert.equal(found.body.items[0].lineTotal, 20);
+  assert.equal(found.body.items[0].lineTotalMinor, 2000);
+  assert.equal(found.body.items[0].price, 10);
+  assert.equal(found.body.source, 'sap');
+  assert.equal(found.body.cached, false);
+  assert.ok(found.body.sapReadAt);
+  assert.doesNotMatch(JSON.stringify(sap.state()), /test-key/);
+  for (const alias of [sapId, '990001', '0000990001', 'SAP-0000990001', 'KM-SAP-100', 'km-sap-100']) {
+    const reopened = await sap.request('/api/assist/orders/' + encodeURIComponent(alias), {}, 'GET');
+    assert.equal(reopened.status, 200, alias);
+    assert.equal(reopened.body.id, sapId);
+    assert.equal(reopened.body.cached, true);
+  }
+  assert.equal(sap.calls.length, 1);
+  const reported = await sap.request('/api/assist/orders/KM-SAP-100/problem', { code: 'DELAY' });
+  assert.equal(reported.status, 200);
+  assert.equal(reported.body.problem.code, 'DELAY');
+  assert.equal(reported.body.headline, reported.body.problem.title);
+  assert.equal(reported.body.options.find(option => option.id === 'refund').amount, 25.55);
+  const sapCase = await open(sap, '990001');
+  assert.equal(sapCase.status, 200);
+  const sapCaseId = sapCase.body.recoveryCase.id;
+  assert.equal(sapCase.body.recoveryCase.orderId, sapId);
+  assert.equal(sapCase.body.recoveryCase.salesOrder, '990001');
+  assert.equal(sapCase.body.recoveryCase.amountMinor, 2555);
+  assert.equal(sapCase.body.recoveryCase.requests[0].body.TransactionCurrency, 'USD');
+  await sap.request(`/api/assist/cases/${sapCaseId}/advance`);
+  const restarted = harness({ initialState: sap.state() });
+  const afterRestart = await restarted.request('/api/assist/orders/KM-SAP-100', {}, 'GET');
+  assert.equal(afterRestart.body.recoveryCase.id, sapCaseId);
+  const next = await restarted.request(`/api/assist/cases/${sapCaseId}/advance`);
+  assert.equal(next.body.recoveryCase.status, 'ready');
+  const sapDone = await restarted.request(`/api/assist/cases/${sapCaseId}/complete`);
+  assert.equal(sapDone.status, 200);
+  assert.equal(sapDone.body.recoveryCase.status, 'closed');
+  assert.equal(sapDone.body.recoveryCase.requests.at(-1).body.RequestedAmount, 25.55);
+  assert.equal(sapDone.body.recoveryCase.requests.at(-1).body.TransactionCurrency, 'USD');
+  const cards = await restarted.request('/api/assist/orders', {}, 'GET');
+  assert.equal(cards.body.orders.length, 5);
+  assert.equal(cards.body.orders.find(order => order.id === sapId).caseLabel, 'Refund confirmed');
+  assert.equal(restarted.calls.length, 0);
+  await restarted.request(`/api/assist/orders/${sapId}/reset`);
+  assert.equal((await restarted.request('/api/assist/orders/990001', {}, 'GET')).body.problem, null);
+  await restarted.request('/api/assist/reset');
+  assert.ok(restarted.state().orders[sapId]);
+
+  // First lookup by customer reference queries SAP safely, including apostrophes.
+  const reference = "KM-O'NEIL & 2";
+  const byReference = harness({ key: 'test-key', fetchImpl: url => {
+    const params = new URL(url).searchParams;
+    assert.equal(params.get('$filter'), "(SalesOrder eq 'KM-O''NEIL & 2' or PurchaseOrderByCustomer eq 'KM-O''NEIL & 2')");
+    assert.equal(params.get('$top'), '2');
+    assert.equal(params.get('$expand'), 'to_Item');
+    return sapRead({ d: { results: [sapOrder({ PurchaseOrderByCustomer: reference })] } });
+  } });
+  const referenceResult = await byReference.request('/api/assist/orders/' + encodeURIComponent(reference), {}, 'GET');
+  assert.equal(referenceResult.status, 200);
+  assert.equal(referenceResult.body.id, sapId);
+  assert.equal((await byReference.request('/api/assist/orders/' + sapId, {}, 'GET')).status, 200);
+  assert.equal(byReference.calls.length, 1);
+
+  // A numeric customer reference can fall back from the entity-key lookup.
+  const numericReference = harness({ key: 'test-key', fetchImpl: url =>
+    url.includes("A_SalesOrder('1234')") ? sapRead({}, 404) : sapRead({ d: { results: [sapOrder({ PurchaseOrderByCustomer: '1234' })] } })
+  });
+  assert.equal((await numericReference.request('/api/assist/orders/1234', {}, 'GET')).body.id, sapId);
+
+  // Ambiguous customer references must not choose an arbitrary financial order.
+  const ambiguous = harness({ key: 'test-key', fetchImpl: () => sapRead({ d: { results: [sapOrder(), sapOrder({ SalesOrder: '990002' })] } }) });
+  assert.equal((await ambiguous.request('/api/assist/orders/SHARED', {}, 'GET')).status, 409);
+  assert.equal(ambiguous.writes, 0);
+  const shared = harness({ key: 'test-key', fetchImpl: url => sapRead({ d: sapOrder({
+    SalesOrder: url.includes('990002') ? '990002' : '990001', PurchaseOrderByCustomer: 'SHARED'
+  }) }) });
+  await shared.request('/api/assist/orders/990001', {}, 'GET');
+  await shared.request('/api/assist/orders/990002', {}, 'GET');
+  assert.equal((await shared.request('/api/assist/orders/SHARED', {}, 'GET')).status, 409);
+  assert.equal((await shared.request('/api/assist/orders/SAP-990002', {}, 'GET')).body.salesOrder, '990002');
+
+  // Missing/invalid upstream amounts never become a zero-valued refund order.
+  const invalidRows = [
+    sapOrder({ TransactionCurrency: '' }),
+    sapOrder({ to_Item: { results: [] } }),
+    ...[undefined, '', 'invalid', '-1', '1e99'].map(NetAmount => sapOrder({ to_Item: { results: [{ RequestedQuantity: '2', NetAmount }] } })),
+    ...['0', '-2', 'invalid', true].map(RequestedQuantity => sapOrder({ to_Item: { results: [{ RequestedQuantity, NetAmount: '20' }] } })),
+    sapOrder({ to_Item: { results: [{ RequestedQuantity: '1', NetAmount: '20', TransactionCurrency: 'EUR' }] } })
+  ];
+  for (const row of invalidRows) {
+    const invalid = harness({ key: 'test-key', fetchImpl: () => sapRead({ d: row }) });
+    assert.equal((await invalid.request('/api/assist/orders/990001', {}, 'GET')).status, 502);
+    assert.equal(invalid.writes, 0);
+  }
+  const unavailable = harness({ key: 'test-key', fetchImpl: () => { throw new Error('SAP unavailable'); } });
+  assert.equal((await unavailable.request('/api/assist/orders/990001', {}, 'GET')).status, 502);
+  unavailable.setFetch(() => sapRead({ d: sapOrder() }));
+  assert.equal((await unavailable.request('/api/assist/orders/990001', {}, 'GET')).status, 200);
+  const missing = harness({ key: 'test-key', fetchImpl: () => sapRead({ d: { results: [] } }) });
+  assert.equal((await missing.request('/api/assist/orders/MISSING', {}, 'GET')).status, 404);
+  const interruptedRead = harness({ key: 'test-key', fetchImpl: () => ({
+    ok: true, status: 200, text: async () => { throw new Error('Connection lost while reading'); }
+  }) });
+  assert.equal((await interruptedRead.request('/api/assist/orders/990001', {}, 'GET')).status, 502);
+  assert.equal(interruptedRead.writes, 0);
+
+  // Source currencies and non-two-decimal amounts survive lookup and recovery.
+  for (const [currency, net, total, minor] of [['JPY', '995', 995, 995], ['KWD', '1.234', 1.234, 1234], ['AUD', '0.30', 0.3, 30]]) {
+    const app = harness({ key: 'test-key', fetchImpl: () => sapRead({ d: sapOrder({
+      TransactionCurrency: currency,
+      RequestedDeliveryDate: '/Date(' + Date.UTC(2026, 9, 21) + ')/',
+      to_Item: { results: [{ RequestedQuantity: '2', NetAmount: net }] }
+    }) }) });
+    const found = await app.request('/api/assist/orders/990001', {}, 'GET');
+    assert.equal(found.body.total, total);
+    assert.equal(found.body.items[0].lineTotalMinor, minor);
+    assert.equal(found.body.promise, '2026-10-21');
+    await app.request('/api/assist/orders/SAP-990001/problem', { code: 'DELAY' });
+    const opened = await open(app, 'SAP-990001');
+    assert.equal(opened.body.recoveryCase.amountMinor, minor);
+    assert.equal(opened.body.recoveryCase.requests[0].body.RequestedAmount, total);
+    assert.equal(opened.body.recoveryCase.requests[0].body.TransactionCurrency, currency);
+  }
+
+  const reservedReference = harness({ key: 'test-key', fetchImpl: url =>
+    new URL(url).searchParams.has('$filter') ? sapRead({ d: { results: [sapOrder({ PurchaseOrderByCustomer: 'SAP-CUSTOMER' })] } }) : sapRead({}, 404)
+  });
+  assert.equal((await reservedReference.request('/api/assist/orders/SAP-CUSTOMER', {}, 'GET')).body.id, sapId);
+  const collision = harness({ key: 'test-key', fetchImpl: () => sapRead({ d: sapOrder({ PurchaseOrderByCustomer: 'KM185002' }) }) });
+  assert.equal((await collision.request('/api/assist/orders/990001', {}, 'GET')).body.id, sapId);
+  assert.equal((await collision.request('/api/assist/orders/KM185002', {}, 'GET')).body.total, 30);
+  assert.equal((await collision.request('/api/assist/orders/' + sapId, {}, 'GET')).body.total, 25.55);
+
+  // GET lookups now also populate shared state. Queue them with POST mutations
+  // so a new snapshot cannot overwrite an unrelated recovery opened concurrently.
+  const lookupStarted = deferred(), releaseLookup = deferred();
+  const overlap = harness({ key: 'test-key', fetchImpl: async () => {
+    lookupStarted.resolve(); await releaseLookup.promise;
+    return sapRead({ d: sapOrder() });
+  } });
+  const lookupOne = overlap.request('/api/assist/orders/990001', {}, 'GET');
+  const lookupTwo = overlap.request('/api/assist/orders/990001', {}, 'GET');
+  await lookupStarted.promise;
+  const demoWhileReading = open(overlap);
+  releaseLookup.resolve();
+  const lookups = await Promise.all([lookupOne, lookupTwo, demoWhileReading]);
+  assert.ok(lookups.every(result => result.status === 200));
+  assert.equal(overlap.calls.length, 1);
+  assert.ok(overlap.state().orders[sapId]);
+  assert.ok(overlap.state().cases.KM185002);
+
+  console.log('Customer Assist API passed: safeguards, SAP identities, saved snapshots and correct totals (mocked SAP).');
 }
 
 run().catch(error => { console.error(error); process.exitCode = 1; });

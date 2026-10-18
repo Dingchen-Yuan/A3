@@ -5,14 +5,15 @@
 const fs = require('fs');
 const path = require('path');
 const recovery = require('./lib/customerRecovery');
+const amounts = require('./lib/customerAmounts');
 const { allOrders, findOrder, REPORTABLE } = require('./data/customerOrders');
 const { SALES_ORDER_PATH } = require('./lib/salesOrderQuery');
 
 const STATE_FILE = path.join(__dirname, 'data', 'customer_state.json');
 const SAP_TIMEOUT_MS = 8000;
 
-// This prototype stores all customer cases in one JSON file. Serialize mutations
-// so concurrent clicks cannot post twice or overwrite another order's changes.
+// Serialize mutations and cache-populating lookups in this single-process demo
+// so concurrent requests cannot overwrite another order's saved state.
 let mutationQueue = Promise.resolve();
 function serializeMutation(fn) {
   const result = mutationQueue.then(fn);
@@ -29,9 +30,10 @@ function salesRoot(sapBase) {
 
 function readState() {
   try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    return Object.assign({}, state, { cases: state.cases || {}, problems: state.problems || {}, orders: state.orders || {} });
   } catch (err) {
-    return { cases: {}, problems: {} };
+    return { cases: {}, problems: {}, orders: {} };
   }
 }
 
@@ -41,19 +43,18 @@ function writeState(state) {
 
 async function sapGet(root, key, sapPath) {
   if (!root || !key) return null;
-  let res;
   try {
-    res = await fetch(root + sapPath, {
+    const res = await fetch(root + sapPath, {
       headers: { APIKey: key, Accept: 'application/json' },
       signal: AbortSignal.timeout(SAP_TIMEOUT_MS)
     });
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); } catch (err) { json = { raw: text }; }
+    return { status: res.status, ok: res.ok, data: json };
   } catch (err) {
     return null;
   }
-  const text = await res.text();
-  let json;
-  try { json = JSON.parse(text); } catch (err) { json = { raw: text }; }
-  return { status: res.status, ok: res.ok, data: json };
 }
 
 async function sapPost(root, key, mode, sapPath, body) {
@@ -77,13 +78,24 @@ async function sapPost(root, key, mode, sapPath, body) {
   }
 }
 
+function applyProblem(order, state) {
+  const problem = state.problems[order.id];
+  return problem ? Object.assign({}, order, { problem, headline: problem.title, summary: problem.title }) : order;
+}
+
 function withProblem(order) {
   const state = readState();
-  if (state.problems[order.id]) order.problem = state.problems[order.id];
+  order = applyProblem(order, state);
+  const currency = amounts.currencyFor(order);
   const active = state.cases[order.id] || null;
   return {
     id: order.id,
+    customerReference: order.customerReference || order.id,
     salesOrder: order.salesOrder,
+    currency,
+    source: order.source || 'demo',
+    cached: Boolean(order.cached),
+    sapReadAt: order.sapReadAt || null,
     outboundDelivery: order.outboundDelivery,
     freightOrder: order.freightOrder,
     customer: order.customer,
@@ -91,7 +103,10 @@ function withProblem(order) {
     address: order.address,
     promise: order.promise,
     node: order.node,
-    items: order.items,
+    items: order.items.map(item => Object.assign({}, item, {
+      lineTotalMinor: amounts.lineTotalMinor(item, currency),
+      lineTotal: amounts.lineTotal(item, currency)
+    })),
     events: order.events,
     problem: order.problem,
     headline: order.headline,
@@ -108,16 +123,50 @@ function withProblem(order) {
   };
 }
 
-function catalogueOrder(id) {
-  const order = findOrder(id);
+class OrderLookupError extends Error {
+  constructor(message, status = 502) { super(message); this.status = status; }
+}
+
+function salesKey(value) {
+  const key = String(value || '').trim().toUpperCase();
+  return /^\d+$/.test(key) ? key.replace(/^0+(?=\d)/, '') : key;
+}
+
+function savedOrders(state) {
+  return Object.values(state.orders).filter(order => order && typeof order.id === 'string' && Array.isArray(order.items));
+}
+
+function knownOrder(query, state = readState()) {
+  const text = String(query || '').trim();
+  const demo = findOrder(text) || (/^\d+$/.test(text) && allOrders().find(order => salesKey(order.salesOrder) === salesKey(text)));
+  if (demo) return applyProblem(Object.assign({}, demo, { source: 'demo', currency: 'AUD' }), state);
+  const orders = savedOrders(state);
+  const explicit = /^SAP-(.+)$/i.exec(text);
+  const canonicalId = explicit ? 'SAP-' + salesKey(explicit[1]) : text;
+  const canonical = orders.find(order => order.id.toLowerCase() === canonicalId.toLowerCase());
+  if (canonical) return applyProblem(Object.assign({}, canonical, { cached: true }), state);
+  const bySalesOrder = orders.find(order => salesKey(order.salesOrder) === salesKey(text));
+  if (bySalesOrder) return applyProblem(Object.assign({}, bySalesOrder, { cached: true }), state);
+  const matches = orders.filter(order => String(order.customerReference || '').toLowerCase() === text.toLowerCase());
+  if (matches.length > 1) throw new OrderLookupError('More than one order uses that reference. Please enter the sales order number.', 409);
+  return matches.length ? applyProblem(Object.assign({}, matches[0], { cached: true }), state) : null;
+}
+
+async function resolveOrder(query, root, key) {
+  const known = knownOrder(query);
+  if (known) return known;
+  if (!key) return null;
+  const order = await orderFromSap(root, key, String(query || '').trim());
   if (!order) return null;
   const state = readState();
-  if (state.problems[order.id]) {
-    order.problem = state.problems[order.id];
-    order.headline = order.problem.title;
-    order.summary = order.problem.title;
+  const cached = Boolean(state.orders[order.id]);
+  // Keep the original snapshot for an existing case; a later lookup must not
+  // change the quantities, currency or refund value that was already selected.
+  if (!state.orders[order.id]) {
+    state.orders[order.id] = order;
+    writeState(state);
   }
-  return order;
+  return applyProblem(Object.assign({}, state.orders[order.id], { cached }), readState());
 }
 
 function caseLabel(recoveryCase) {
@@ -130,13 +179,15 @@ function caseLabel(recoveryCase) {
 }
 
 function listOrders() {
-  return allOrders()
+  const state = readState();
+  return allOrders().concat(savedOrders(state))
     .map(order => {
-      const state = readState();
-      if (state.problems[order.id]) order.problem = state.problems[order.id];
+      order = applyProblem(order, state);
       const card = withProblem(order);
       return {
         id: card.id,
+        customerReference: card.customerReference,
+        source: card.source,
         salesOrder: card.salesOrder,
         summary: order.problem ? order.problem.title : order.summary,
         headline: order.problem ? order.problem.title : order.headline,
@@ -185,34 +236,81 @@ async function readSalesOrders(root, key) {
   }, query);
 }
 
-async function orderFromSap(root, key, salesOrder) {
-  const result = await sapGet(root, key, `/sap/opu/odata/sap/API_SALES_ORDER_SRV/A_SalesOrder('${encodeURIComponent(salesOrder)}')?$expand=to_Item`);
-  if (!result || !result.ok) return null;
-  const row = result.data.d || result.data;
-  const items = ((row.to_Item && row.to_Item.results) || []).map(item => ({
-    sku: item.Material || 'ITEM',
-    name: item.SalesOrderItemText || item.Material || 'Item',
-    qty: Number(item.RequestedQuantity) || 1,
-    price: Number(item.NetAmount) || 0,
-    damaged: false
-  }));
+async function orderFromSap(root, key, query) {
+  const endpoint = '/sap/opu/odata/sap/API_SALES_ORDER_SRV/A_SalesOrder';
+  const explicit = /^SAP-(.+)$/i.exec(query);
+  const salesOrder = explicit ? explicit[1] : /^\d+$/.test(query) ? query : null;
+  let result;
+  if (salesOrder) {
+    const escaped = encodeURIComponent(salesOrder.replace(/'/g, "''"));
+    result = await sapGet(root, key, `${endpoint}('${escaped}')?$expand=to_Item`);
+  }
+  // A reference may be non-numeric (or a numeric customer PO number). Escape
+  // OData literals and encode query parameters rather than interpolating input.
+  if (!salesOrder || (result && result.status === 404)) {
+    const literal = "'" + query.replace(/'/g, "''") + "'";
+    const params = new URLSearchParams({
+      '$filter': `(SalesOrder eq ${literal} or PurchaseOrderByCustomer eq ${literal})`,
+      '$top': '2', '$expand': 'to_Item'
+    });
+    result = await sapGet(root, key, endpoint + '?' + params);
+  }
+  if (result && result.status === 404) return null;
+  if (!result || !result.ok) throw new OrderLookupError('SAP order lookup is unavailable. Please try again later.');
+  const rows = salesOrderRows(result.data);
+  if (rows.length > 1) throw new OrderLookupError('More than one order uses that reference. Please enter the sales order number.', 409);
+  if (!rows.length) return null;
+  const row = rows[0];
+  const number = String(row.SalesOrder || '').trim();
+  const rawItems = row.to_Item && row.to_Item.results;
+  if (!number || !Array.isArray(rawItems) || !rawItems.length) {
+    throw new OrderLookupError('SAP returned incomplete order details. Please try again later.');
+  }
+  let currency, items;
+  try {
+    currency = amounts.currencyCode(row.TransactionCurrency || rawItems[0].TransactionCurrency || '');
+    items = rawItems.map(item => {
+      const qty = Number(item.RequestedQuantity);
+      if (!['string', 'number'].includes(typeof item.RequestedQuantity) || !Number.isFinite(qty) || qty <= 0 || item.NetAmount == null || String(item.NetAmount).trim() === '' || Number(item.NetAmount) < 0) {
+        throw new RangeError('Invalid order amount or quantity');
+      }
+      if (item.TransactionCurrency && amounts.currencyCode(item.TransactionCurrency) !== currency) {
+        throw new RangeError('Mixed order currencies');
+      }
+      const lineTotalMinor = amounts.toMinor(item.NetAmount, currency);
+      const lineTotal = amounts.fromMinor(lineTotalMinor, currency);
+      return {
+        itemNumber: item.SalesOrderItem || '',
+        sku: item.Material || 'ITEM', name: item.SalesOrderItemText || item.Material || 'Item',
+        qty, price: lineTotal / qty, lineTotalMinor, lineTotal, damaged: false
+      };
+    });
+    amounts.sumMinor(items, currency);
+  } catch (err) {
+    throw new OrderLookupError('SAP returned an invalid order amount, quantity or currency. No recovery has been created.');
+  }
+  const requested = String(row.RequestedDeliveryDate || '');
+  const wrappedDate = /^\/Date\((-?\d+)(?:[+-]\d+)?\)\/$/.exec(requested);
+  const date = wrappedDate && new Date(Number(wrappedDate[1]));
+  const promise = date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : requested || 'Date on the sales order';
   return {
-    id: row.PurchaseOrderByCustomer || salesOrder,
-    salesOrder: row.SalesOrder || salesOrder,
+    id: 'SAP-' + salesKey(number),
+    customerReference: String(row.PurchaseOrderByCustomer || number).trim(),
+    salesOrder: number,
+    currency, source: 'sap', sapReadAt: new Date().toISOString(),
     outboundDelivery: '',
     freightOrder: '',
     customer: 'SAP customer',
     soldToParty: row.SoldToParty || '',
     channel: 'Home delivery',
     address: 'On the sales order',
-    promise: row.RequestedDeliveryDate || 'Date on the sales order',
+    promise,
     node: 'SAP S/4HANA',
-    items: items.length ? items : [{ sku: 'ITEM', name: 'Sales order item', qty: 1, price: 0, damaged: false }],
-    events: [{ at: 'From SAP', title: `Sales order ${row.SalesOrder || salesOrder} read from API_SALES_ORDER_SRV`, state: 'current' }],
+    items,
+    events: [{ at: 'From SAP', title: `Sales order ${number} read from API_SALES_ORDER_SRV`, state: 'current' }],
     problem: null,
     headline: 'We found this sales order',
-    summary: 'Sales order read from SAP',
-    live: true
+    summary: 'Sales order read from SAP'
   };
 }
 
@@ -247,7 +345,9 @@ async function handleRequest(req, res, ctx) {
   }
 
   if (pathname === '/api/assist/reset' && req.method === 'POST') {
-    writeState({ cases: {}, problems: {} });
+    const state = readState();
+    state.cases = {}; state.problems = {};
+    writeState(state);
     sendJson(res, 200, { ok: true });
     return true;
   }
@@ -256,8 +356,7 @@ async function handleRequest(req, res, ctx) {
   if (orderMatch) {
     const id = decodeURIComponent(orderMatch[1]);
     const action = orderMatch[2];
-    let order = catalogueOrder(id);
-    if (!order && /^\d+$/.test(id)) order = await orderFromSap(root, key, id);
+    const order = await resolveOrder(id, root, key);
     if (!order) {
       sendJson(res, 404, { error: 'We can’t find that order. Check the number on your email.' });
       return true;
@@ -286,7 +385,7 @@ async function handleRequest(req, res, ctx) {
       }
       state.problems[order.id] = problem;
       writeState(state);
-      sendJson(res, 200, withProblem(catalogueOrder(order.id)));
+      sendJson(res, 200, withProblem(knownOrder(order.id)));
       return true;
     }
 
@@ -295,12 +394,12 @@ async function handleRequest(req, res, ctx) {
       delete state.cases[order.id];
       delete state.problems[order.id];
       writeState(state);
-      sendJson(res, 200, withProblem(catalogueOrder(order.id) || order));
+      sendJson(res, 200, withProblem(knownOrder(order.id)));
       return true;
     }
 
     if (action === 'recovery' && req.method === 'POST') {
-      const current = catalogueOrder(order.id) || order;
+      const current = knownOrder(order.id);
       const body = await ctx.jsonBody(req);
       if (!body) {
         sendJson(res, 400, { error: 'bad json' });
@@ -334,7 +433,7 @@ async function handleRequest(req, res, ctx) {
       if (posted.status) recoveryCase.requests[0].status = posted.status;
       state.cases[current.id] = recoveryCase;
       writeState(state);
-      sendJson(res, 200, withProblem(catalogueOrder(current.id) || current));
+      sendJson(res, 200, withProblem(knownOrder(current.id)));
       return true;
     }
   }
@@ -348,7 +447,7 @@ async function handleRequest(req, res, ctx) {
       sendJson(res, 404, { error: 'That recovery could not be found.' });
       return true;
     }
-    const order = catalogueOrder(orderId);
+    const order = await resolveOrder(orderId, root, key);
     if (!order) {
       sendJson(res, 404, { error: 'We can’t find the order linked to this recovery.' });
       return true;
@@ -383,7 +482,7 @@ async function handleRequest(req, res, ctx) {
       if (posted.status) last.status = posted.status;
     }
     writeState(state);
-    sendJson(res, 200, withProblem(catalogueOrder(orderId)));
+    sendJson(res, 200, withProblem(knownOrder(order.id)));
     return true;
   }
 
@@ -394,8 +493,15 @@ async function handleRequest(req, res, ctx) {
 async function tryHandle(req, res, ctx) {
   const pathname = new URL(req.url, 'http://localhost').pathname;
   if (!pathname.startsWith('/api/assist')) return false;
-  if (req.method === 'POST') return serializeMutation(() => handleRequest(req, res, ctx));
-  return handleRequest(req, res, ctx);
+  try {
+    const cachesOrder = req.method === 'GET' && /^\/api\/assist\/orders\/[^/]+$/.test(pathname);
+    if (req.method === 'POST' || cachesOrder) return await serializeMutation(() => handleRequest(req, res, ctx));
+    return await handleRequest(req, res, ctx);
+  } catch (err) {
+    if (!(err instanceof OrderLookupError)) throw err;
+    ctx.sendJson(res, err.status, { error: err.message });
+    return true;
+  }
 }
 
 module.exports = { tryHandle, salesRoot };
