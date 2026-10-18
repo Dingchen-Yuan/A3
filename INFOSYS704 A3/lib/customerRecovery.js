@@ -6,6 +6,7 @@
 
 const SERVICE_API = 'OP_API_SERVICE_REQUEST_SRV_0001';
 const amounts = require('./customerAmounts');
+const selections = require('./customerSelections');
 
 const STEP_COPY = {
   redeliver: [
@@ -37,17 +38,16 @@ function orderTotal(order) {
   return amounts.fromMinor(amounts.sumMinor(order.items, currency), currency);
 }
 
-function affectedTotal(order) {
-  const damaged = (order.items || []).filter(item => item.damaged);
-  const basis = damaged.length ? damaged : (order.items || []);
+function affectedTotal(order, problem = order.problem) {
   const currency = amounts.currencyFor(order);
-  return amounts.fromMinor(amounts.sumMinor(basis, currency), currency);
+  return amounts.fromMinor(selections.totalMinor(order, selections.forProblem(order, problem)), currency);
 }
 
-function refundDetail(order, amount) {
+function refundDetail(order, amount, selected = selections.forProblem(order)) {
   const full = orderTotal(order);
-  if (amount > 0 && amount < full) {
-    return 'That item only, back to your original payment. The rest of the order stays as it is.';
+  if ((selected.length && selections.isPartial(order, selected)) || (amount > 0 && amount < full)) {
+    const scope = selected.length === 1 && selected[0].qty === selected[0].orderedQty ? 'That item only' : 'Only the selected items and quantities';
+    return `${scope}, back to your original payment. The rest of the order stays as it is.`;
   }
   return 'Back to your original payment. This order will not be delivered.';
 }
@@ -55,9 +55,11 @@ function refundDetail(order, amount) {
 function optionsFor(order, problem) {
   if (!problem) return [];
   const currency = amounts.currencyFor(order);
+  const selected = selections.forProblem(order, problem);
+  if (selections.needsItemSelection(problem) && !selected.length) return [];
   const full = orderTotal(order);
-  const affected = affectedTotal(order);
-  const itemName = (order.items.find(item => item.damaged) || order.items[0]).name;
+  const affected = affectedTotal(order, problem);
+  const itemSummary = selections.summary(selected);
 
   if (problem.code === 'FAILED_ATTEMPT') {
     return [
@@ -80,7 +82,7 @@ function optionsFor(order, problem) {
       {
         id: 'refund',
         title: `Refund ${money(full, currency)}`,
-        detail: refundDetail(order, full),
+        detail: refundDetail(order, full, selected),
         recommended: false,
         outcome: 'refund',
         amount: full
@@ -92,7 +94,7 @@ function optionsFor(order, problem) {
     {
       id: 'replace',
       title: 'Send a replacement',
-      detail: `${itemName} tomorrow, 5–8pm. No extra charge.`,
+      detail: `${itemSummary} tomorrow, 5–8pm. No extra charge.`,
       recommended: true,
       outcome: 'replacement',
       amount: 0
@@ -100,7 +102,7 @@ function optionsFor(order, problem) {
     {
       id: 'refund',
       title: `Refund ${money(affected, currency)}`,
-      detail: refundDetail(order, affected),
+      detail: refundDetail(order, affected, selected),
       recommended: false,
       outcome: 'refund',
       amount: affected
@@ -123,7 +125,9 @@ function serviceRequestBody({ recoveryCase, order, option, action }) {
     action,
     ServiceRequest: recoveryCase.id,
     ServiceRequestType: 'YDEL',
-    ServiceRequestDescription: `${order.id}: ${option.title}`.slice(0, 40),
+    ServiceRequestDescription: (selections.needsItemSelection({ code: recoveryCase.problemCode }) && recoveryCase.affectedItems
+      ? `${option.id === 'refund' ? 'Refund' : 'Replace'} ${selections.summary(recoveryCase.affectedItems)}`
+      : `${order.id}: ${option.title}`).slice(0, 40),
     SoldToParty: order.soldToParty,
     SalesOrder: order.salesOrder,
     ServiceRequestPriority: option.id === 'refund' ? '1' : '3',
@@ -135,6 +139,10 @@ function serviceRequestBody({ recoveryCase, order, option, action }) {
 }
 
 function createCase({ order, problem, option }) {
+  option = optionById(order, problem, option && option.id);
+  if (!option) throw new selections.SelectionError('Confirm the affected items and choose a recovery option.');
+  const affectedItems = selections.forProblem(order, problem);
+  const affectedValueMinor = selections.totalMinor(order, affectedItems);
   const recoveryCase = {
     id: newCaseId(order.id),
     orderId: order.id,
@@ -146,6 +154,10 @@ function createCase({ order, problem, option }) {
     amount: option.amount,
     amountMinor: amounts.toMinor(option.amount, amounts.currencyFor(order)),
     currency: amounts.currencyFor(order),
+    affectedItems,
+    affectedValueMinor,
+    affectedValue: amounts.fromMinor(affectedValueMinor, amounts.currencyFor(order)),
+    selectionIsPartial: selections.isPartial(order, affectedItems),
     stepIndex: 0,
     steps: STEP_COPY[option.id],
     status: 'open',
@@ -188,7 +200,7 @@ function complete(recoveryCase, order, option) {
   recoveryCase.updatedAt = new Date().toISOString();
   recoveryCase.closedAt = recoveryCase.updatedAt;
   const body = serviceRequestBody({ recoveryCase, order, option, action: 'complete' });
-  body.settlement = recoveryCase.amount > 0
+  body.settlement = recoveryCase.outcome === 'refund'
     ? 'Customer refund confirmed in Delivery Assist and linked to the sales order. API_BILLING_DOCUMENT_REQUEST_SRV cannot create a refund document.'
     : 'No billing document. The sales order stays open for the replacement, redelivery or collection.';
   recoveryCase.requests.push({ at: recoveryCase.updatedAt, mode: 'simulate', body });
@@ -197,35 +209,37 @@ function complete(recoveryCase, order, option) {
 
 function outcomeCopy(recoveryCase, order) {
   const item = (order.items.find(entry => entry.damaged) || order.items[0]).name;
+  const closed = recoveryCase.status === 'closed';
   if (recoveryCase.outcome === 'refund') {
     return {
-      heading: `${money(recoveryCase.amount, recoveryCase.currency || amounts.currencyFor(order))} refund confirmed`,
+      heading: closed ? `${money(recoveryCase.amount, recoveryCase.currency || amounts.currencyFor(order))} refund confirmed` : `Refund ${money(recoveryCase.amount, recoveryCase.currency || amounts.currencyFor(order))}`,
       lead: recoveryCase.detail || refundDetail(order, recoveryCase.amount),
       confirm: 'Confirm refund',
       done: 'Refund confirmed'
     };
   }
   if (recoveryCase.outcome === 'replacement') {
-    const damaged = (order.items || []).some(entry => entry.damaged);
+    const damaged = recoveryCase.problemCode === 'DAMAGED';
+    const scope = recoveryCase.affectedItems ? selections.summary(recoveryCase.affectedItems) : item;
     return {
-      heading: 'Replacement booked for tomorrow, 5–8pm',
+      heading: closed ? 'Replacement confirmed' : 'Replacement tomorrow, 5–8pm',
       lead: damaged
-        ? `A new ${item} will go to the same address. Keep or discard the damaged one.`
-        : `A new ${item} will go to the same address. You do not need to call us.`,
+        ? `A replacement for ${scope} will go to the same address. Keep or discard the damaged units.${recoveryCase.selectionIsPartial ? ' Other items and units stay unchanged.' : ''}`
+        : `A replacement for ${scope} will go to the same address. You do not need to call us.${recoveryCase.selectionIsPartial ? ' Other items and units stay unchanged.' : ''}`,
       confirm: 'Confirm replacement',
       done: 'Replacement confirmed'
     };
   }
   if (recoveryCase.outcome === 'collection') {
     return {
-      heading: 'Ready to collect from Kmart Broadway',
+      heading: closed ? 'Collection confirmed' : 'Ready to collect from Kmart Broadway',
       lead: 'Service desk, Bay Street, from 10am tomorrow. Bring this order number.',
       confirm: 'Confirm collection',
       done: 'Collection confirmed'
     };
   }
   return {
-    heading: 'Redelivery booked for tomorrow, 5–8pm',
+    heading: closed ? 'Redelivery confirmed' : 'Redelivery tomorrow, 5–8pm',
     lead: 'Same address. No extra charge.',
     confirm: 'Confirm redelivery',
     done: 'Redelivery confirmed'

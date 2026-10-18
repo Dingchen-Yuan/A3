@@ -58,6 +58,14 @@ async function run() {
     assert.ok(items.includes('&lt;Storage box&gt;'));
     assert.ok(!items.includes(new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'USD' }).format(40)));
     assert.equal(vm.runInContext('outcomeText(previewCase, previewOrder).heading', context), expectedMoney + ' refund confirmed');
+    const scopedView = vm.runInContext(`recoveryItems([
+      {name:'<Cushion cover>', qty:1, orderedQty:3, amount:12}
+    ], 'AUD', true)`, context);
+    assert.ok(scopedView.includes('&lt;Cushion cover&gt;'));
+    assert.ok(scopedView.includes('1 of 3 units affected'));
+    assert.ok(scopedView.includes('$12.00'));
+    assert.ok(scopedView.includes('stay unchanged'));
+    assert.equal(vm.runInContext("outcomeText({outcomeCopy:{heading:'Replacement for the selected cover'}}, previewOrder).heading", context), 'Replacement for the selected cover');
     assert.equal(vm.runInContext("orderPath('SAP-REF/1 #A', 'choose')", context), '#/order/SAP-REF%2F1%20%23A/choose');
     const routed = vm.runInContext(`
       showScreen = (id, screen) => [id, screen];

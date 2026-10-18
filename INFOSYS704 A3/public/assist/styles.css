@@ -21,10 +21,10 @@
 [hidden] { display: none !important; }
 html, body { margin: 0; min-height: 100%; }
 body { background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
-button, input { font: inherit; color: inherit; }
+button, input, select { font: inherit; color: inherit; }
 button, summary { cursor: pointer; }
 a { color: var(--red-dark); }
-button, a, input, summary { -webkit-tap-highlight-color: transparent; }
+button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 3px solid #2563a6; outline-offset: 4px; }
 h1:focus, main:focus { outline: none; }
 .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
@@ -171,6 +171,30 @@ h1 { margin: 24px 0 0; font-size: clamp(29px, 3vw, 40px); line-height: 1.2; lett
 .error { margin-top: 18px; padding: 12px 16px; border: 1px solid #f4ccd5; border-radius: 8px; background: var(--red-soft); color: #aa1433; font-size: 13px; }
 .loading { padding: 20px; color: var(--muted); }
 
+/* Item-specific problem reporting and the frozen recovery scope. */
+.problem-form { margin-top: 26px; }
+.problem-select { display: block; width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid #d2dbe5; border-radius: 8px; background: var(--card); font-size: 13px; }
+.affected-picker { min-inline-size: 0; margin: 26px 0 0; padding: 0; border: 0; }
+.affected-picker legend { margin-bottom: 8px; padding: 0; font-size: 15px; font-weight: 650; }
+.problem-item { display: grid; grid-template-columns: minmax(0, 1fr) 130px; align-items: start; gap: 18px; margin-top: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfd; }
+.problem-item.selected { border-color: #e4a0b0; background: #fffafb; }
+.problem-item-label { display: flex; align-items: flex-start; gap: 12px; min-width: 0; cursor: pointer; }
+.affected-check { width: 18px; height: 18px; margin: 3px 0 0; flex: none; accent-color: var(--red); }
+.problem-item-label > span { min-width: 0; }
+.problem-item-label strong { display: block; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.problem-item-label .meta { display: block; font-size: 11px; }
+.quantity-label { display: grid; gap: 7px; font-size: 11px; color: var(--muted); }
+.affected-qty { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid #cbd4df; border-radius: 6px; background: #fff; color: var(--ink); font-size: 14px; text-align: right; }
+.affected-qty:disabled { background: #f0f3f7; color: var(--muted); }
+.affected-qty[aria-invalid="true"] { border-color: var(--red); }
+.recovery-items { display: grid; list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: #fafbfd; overflow: hidden; }
+.recovery-items li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.recovery-items li:last-child { border-bottom: 0; }
+.recovery-items li > div { min-width: 0; }
+.recovery-items strong { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.recovery-items li > div > span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.recovery-items li > span { flex: none; font-size: 12px; font-weight: 600; white-space: nowrap; }
+
 /* Recovery progress and completion */
 .steps { display: grid; gap: 12px; list-style: none; margin: 28px 0 0; padding: 0; }
 .steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; align-items: center; padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfd; }
@@ -229,6 +253,9 @@ details pre { margin: 0 12px 12px; padding: 18px; border-radius: 8px; background
   .timeline { padding: 20px 16px; }
   .steps li { gap: 12px; padding: 16px 14px; }
   .report { grid-template-columns: 1fr; }
+  .problem-select, .affected-qty { font-size: 16px; }
+  .problem-item { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
+  .quantity-label { width: 150px; justify-self: end; }
   .assist-footer { width: calc(100% - 40px); flex-direction: column; gap: 4px; padding-bottom: 20px; font-size: 10px; }
 }
 @media (max-width: 360px) {

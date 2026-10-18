@@ -149,6 +149,57 @@ async function run() {
   assert.equal((await protectedCase.request('/api/assist/orders/KM185002/reset')).status, 200);
   assert.equal(protectedCase.state().cases.KM185002, undefined);
 
+  // A missing cushion cover is $12, not the $18 carrier-flagged box or $30 order.
+  const itemRecovery = harness();
+  const missingCover = await itemRecovery.request('/api/assist/orders/KM185002/problem', {
+    code: 'MISSING', affectedItems: [{ itemId: 'line-2', qty: 1 }]
+  });
+  assert.equal(missingCover.status, 200);
+  assert.equal(missingCover.body.options.find(option => option.id === 'refund').amount, 12);
+  assert.equal(missingCover.body.items[0].affectedQty, 0);
+  assert.equal(missingCover.body.items[1].affectedQty, 1);
+  assert.equal(missingCover.body.affectedItems[0].sku, 'ANKO-CUSH-45');
+  const coverCase = await open(itemRecovery);
+  const coverId = coverCase.body.recoveryCase.id;
+  assert.equal(coverCase.body.recoveryCase.amountMinor, 1200);
+  assert.equal(coverCase.body.recoveryCase.affectedItems[0].itemId, 'line-2');
+  assert.equal(coverCase.body.recoveryCase.selectionIsPartial, true);
+  assert.match(coverCase.body.recoveryCase.detail, /rest of the order/);
+  assert.match(coverCase.body.recoveryCase.requests[0].body.ServiceRequestDescription, /Cushion Cover/);
+  const coverRestart = harness({ initialState: itemRecovery.state() });
+  await ready(coverRestart, coverId);
+  const coverDone = await coverRestart.request(`/api/assist/cases/${coverId}/complete`);
+  assert.equal(coverDone.body.recoveryCase.requests.at(-1).body.RequestedAmount, 12);
+  assert.equal(coverDone.body.recoveryCase.outcomeCopy.heading, '$12.00 refund confirmed');
+  assert.equal(coverDone.body.recoveryCase.affectedItems[0].qty, 1);
+  const coverClosed = coverRestart.state();
+  assert.equal((await coverRestart.request('/api/assist/orders/KM185002/problem', {
+    code: 'DAMAGED', affectedItems: [{ itemId: 'line-1', qty: 1 }]
+  })).status, 409);
+  assert.deepEqual(coverRestart.state(), coverClosed);
+
+  // Scope is validated before saving anything; supplied prices are never used.
+  for (const affectedItems of [
+    undefined, [], [{ itemId: 'line-9', qty: 1 }],
+    [{ itemId: 'line-2', qty: 2 }], [{ itemId: 'line-2', qty: 0 }],
+    [{ itemId: 'line-2', qty: -1 }], [{ itemId: 'line-2', qty: 0.5 }],
+    [{ itemId: 'line-2', qty: '1' }],
+    [{ itemId: 'line-2', qty: 1 }, { itemId: 'line-2', qty: 1 }],
+    [{ itemId: 'line-2', qty: 1, amount: 999 }]
+  ]) {
+    const app = harness();
+    const bad = await app.request('/api/assist/orders/KM185002/problem', { code: 'MISSING', affectedItems });
+    assert.equal(bad.status, 400);
+    assert.equal(app.writes, 0);
+  }
+  const wholeDelivery = harness();
+  assert.equal((await wholeDelivery.request('/api/assist/orders/KM185002/problem', {
+    code: 'DELAY', affectedItems: [{ itemId: 'line-2', qty: 1 }]
+  })).status, 400);
+  assert.equal((await wholeDelivery.request('/api/assist/orders/KM185002/problem', { code: '__proto__' })).status, 400);
+  const whole = await wholeDelivery.request('/api/assist/orders/KM185002/problem', { code: 'DELAY' });
+  assert.equal(whole.body.options.find(option => option.id === 'refund').amount, 30);
+
   // Live writes never silently fall back to simulation on an error.
   for (const fail of [() => sapResponse(405), () => sapResponse(500), () => { throw new Error('SAP timeout'); }]) {
     const app = harness({ mode: 'live', key: 'test-key', fetchImpl: fail });
@@ -390,7 +441,43 @@ async function run() {
   assert.ok(overlap.state().orders[sapId]);
   assert.ok(overlap.state().cases.KM185002);
 
-  console.log('Customer Assist API passed: safeguards, SAP identities, saved snapshots and correct totals (mocked SAP).');
+  // SAP quantities and duplicate materials use line IDs, not a SKU lookup.
+  for (const action of ['refund', 'replace']) {
+    const app = harness({ key: 'test-key', fetchImpl: () => sapRead({ d: sapOrder() }) });
+    await app.request('/api/assist/orders/990001', {}, 'GET');
+    const report = await app.request('/api/assist/orders/SAP-990001/problem', {
+      code: 'DAMAGED', affectedItems: [{ itemId: 'line-1', qty: 1 }, { itemId: 'line-2', qty: 2 }]
+    });
+    assert.equal(report.status, 200);
+    assert.equal(report.body.options.find(option => option.id === 'refund').amount, 13.7);
+    assert.equal(report.body.selectionIsPartial, true);
+    const opened = await app.request('/api/assist/orders/SAP-990001/recovery', {
+      optionId: action, amount: 999, affectedItems: [{ itemId: 'line-1', qty: 99 }]
+    });
+    assert.equal(opened.status, 200);
+    assert.equal(opened.body.recoveryCase.amount, action === 'refund' ? 13.7 : 0);
+    assert.equal(opened.body.recoveryCase.affectedValueMinor, 1370);
+    assert.deepEqual(opened.body.recoveryCase.affectedItems.map(item => item.qty), [1, 2]);
+    await ready(app, opened.body.recoveryCase.id);
+    const done = await app.request(`/api/assist/cases/${opened.body.recoveryCase.id}/complete`);
+    assert.equal(done.body.recoveryCase.requests.at(-1).body.TransactionCurrency, 'USD');
+    assert.equal(done.body.recoveryCase.requests.at(-1).body.RequestedAmount, action === 'refund' ? 13.7 : 0);
+  }
+
+  // Older active cases without item snapshots are still completable without
+  // silently changing their already-recorded amount or outcome.
+  const legacyOrder = harness();
+  const legacyOpened = await open(legacyOrder);
+  const legacyState = legacyOrder.state();
+  delete legacyState.cases.KM185002.affectedItems;
+  legacyState.cases.KM185002.problemCode = 'MISSING';
+  legacyState.problems.KM185002 = { code: 'MISSING', title: 'Old missing-item report', detail: 'Saved before item selection was available.', foundAt: 'Earlier' };
+  const legacy = harness({ initialState: legacyState });
+  await ready(legacy, legacyOpened.body.recoveryCase.id);
+  assert.equal((await legacy.request(`/api/assist/cases/${legacyOpened.body.recoveryCase.id}/complete`)).body.recoveryCase.amount, 18);
+
+  console.log('Customer Assist API passed: item-specific recoveries, safeguards, SAP identities and saved snapshots (mocked SAP).');
 }
 
-run().catch(error => { console.error(error); process.exitCode = 1; });
+if (require.main === module) run().catch(error => { console.error(error); process.exitCode = 1; });
+module.exports = { harness, sapOrder, sapRead };

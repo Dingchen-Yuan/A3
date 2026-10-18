@@ -132,17 +132,28 @@ A delay finishes as a replacement or a refund. The service request uses `OP_API_
 - In `live` mode, missing credentials, SAP errors and timeouts return an error rather than silently switching to simulation. Failed creation saves no confirmed case; failed completion leaves the case ready to retry.
 - Reporting another problem or choosing a different option cannot silently erase an existing case. Restarting remains an explicit demo action.
 
-Refund/replacement confirmations are prototype outcomes, not actual payments or replacement dispatches. SAP amounts are the supplied net line amounts; this is not a tax, shipping or payment-settlement integration. Carrier updates and the selection of specific items/quantities for newly reported problems are separate improvements.
+### Item-specific problems and partial recovery
+
+- Step 3 lets customers confirm the problem type and select affected items/quantities for **damage** or **missing items**. Delay and failed-attempt reports apply to the whole delivery and say so explicitly.
+- Items have snapshot-specific IDs (`line-1`, `line-2`, …), so two order lines with the same SKU can be selected separately. The server accepts only item IDs and quantities; it calculates values from the saved order, not client-supplied prices.
+- Unknown/duplicate items, empty selections, non-positive or excessive quantities, and fractional counts of whole-unit items are rejected. Existing fractional-quantity lines can retain fractional quantities.
+- Partial values are proportional to the authoritative line total and rounded once in the order currency: **2 of 3 units on a $1 line = $0.67**, while all 3 remain $1.00.
+- The case freezes the selected item names, quantities, values and currency. Options, recovery tracking, confirmation and reopening all show that scope; unselected units/items are unchanged. Existing saved cases and the original $18 damaged-box demo remain supported.
+
+To demonstrate the new flow, open `KM185002` (use **Start this order again** if it already has a case), confirm **An item is missing**, select **1 ANKO Cushion Cover**, then choose its **$12 refund** or replacement. The box is not included in that recovery.
+
+Refund/replacement confirmations are prototype outcomes, not actual payments or replacement dispatches. SAP amounts are the supplied net line amounts; this is not a tax, shipping or payment-settlement integration. Carrier-driven recovery updates remain a separate improvement.
 
 ### Tests
 
 ```bash
 node tests/customerRecovery.test.js
 node tests/customerAmounts.test.js
+node tests/customerSelections.test.js
 node tests/customerAssist.test.js
 node tests/navigation.test.js
 ```
 
-The API tests use in-memory state and mocked SAP responses, including SAP-only orders through lookup, reporting, recovery, restart and reopening. Amount tests cover multi-unit lines, multiple items, partial refunds, decimal precision and currencies. Navigation/view tests check encoded IDs and displayed totals/currencies using a temporary local port. None of these tests resets your saved demo state or sends real SAP writes.
+The API tests use in-memory state and mocked SAP responses, including SAP-only orders through lookup, reporting, recovery, restart and reopening. Selection/amount tests cover partial quantities, duplicate SKUs, invalid/tampered selections, zero-value items, decimal precision and currencies. Navigation/view tests check encoded IDs and displayed scope/totals using a temporary local port. None of these tests resets your saved demo state or sends real SAP writes.
 
 Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.

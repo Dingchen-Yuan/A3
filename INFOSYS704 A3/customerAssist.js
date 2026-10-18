@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const recovery = require('./lib/customerRecovery');
 const amounts = require('./lib/customerAmounts');
+const selections = require('./lib/customerSelections');
 const { allOrders, findOrder, REPORTABLE } = require('./data/customerOrders');
 const { SALES_ORDER_PATH } = require('./lib/salesOrderQuery');
 
@@ -88,6 +89,7 @@ function withProblem(order) {
   order = applyProblem(order, state);
   const currency = amounts.currencyFor(order);
   const active = state.cases[order.id] || null;
+  const affectedItems = selections.forProblem(order, order.problem);
   return {
     id: order.id,
     customerReference: order.customerReference || order.id,
@@ -103,17 +105,22 @@ function withProblem(order) {
     address: order.address,
     promise: order.promise,
     node: order.node,
-    items: order.items.map(item => Object.assign({}, item, {
+    items: order.items.map((item, index) => Object.assign({}, item, {
+      itemId: selections.itemId(index),
+      affectedQty: order.problem ? (affectedItems.find(affected => affected.itemId === selections.itemId(index)) || {}).qty || 0 : 0,
       lineTotalMinor: amounts.lineTotalMinor(item, currency),
       lineTotal: amounts.lineTotal(item, currency)
     })),
     events: order.events,
     problem: order.problem,
+    affectedItems: order.problem ? affectedItems : [],
+    selectionIsPartial: Boolean(order.problem && affectedItems.length && selections.isPartial(order, affectedItems)),
+    requiresItemSelection: selections.needsItemSelection(order.problem) && !affectedItems.length,
     headline: order.headline,
     summary: order.problem ? order.problem.title : order.summary,
     total: recovery.orderTotal(order),
     options: recovery.optionsFor(order, order.problem),
-    recoveryCase: active,
+    recoveryCase: active ? Object.assign({}, active, { outcomeCopy: recovery.outcomeCopy(active, order) }) : null,
     sap: {
       salesOrder: order.salesOrder,
       outboundDelivery: order.outboundDelivery,
@@ -373,7 +380,7 @@ async function handleRequest(req, res, ctx) {
         sendJson(res, 400, { error: 'bad json' });
         return true;
       }
-      const problem = REPORTABLE[body.code];
+      const problem = typeof body.code === 'string' && Object.hasOwn(REPORTABLE, body.code) ? REPORTABLE[body.code] : null;
       if (!problem) {
         sendJson(res, 400, { error: 'Choose what went wrong.' });
         return true;
@@ -383,7 +390,14 @@ async function handleRequest(req, res, ctx) {
         sendJson(res, 409, { error: 'A recovery already exists for this order. Continue it, or restart the order before reporting another problem.' });
         return true;
       }
-      state.problems[order.id] = problem;
+      let reported = Object.assign({}, problem);
+      if (selections.needsItemSelection(problem)) {
+        const affected = selections.validate(order, body.affectedItems);
+        reported.affectedItems = affected.map(item => ({ itemId: item.itemId, qty: item.qty }));
+      } else if (body.affectedItems != null) {
+        throw new selections.SelectionError('A delay or failed attempt covers the whole delivery. Item selection is for damaged or missing items.');
+      }
+      state.problems[order.id] = reported;
       writeState(state);
       sendJson(res, 200, withProblem(knownOrder(order.id)));
       return true;
@@ -429,6 +443,9 @@ async function handleRequest(req, res, ctx) {
         sendJson(res, 502, { error: 'We could not send your recovery request to SAP. Nothing has been confirmed. Please try again.', sapStatus: posted.status || null });
         return true;
       }
+      if (selections.needsItemSelection(current.problem) && !selections.forProblem(current, current.problem).length) {
+        throw new selections.SelectionError('Choose and confirm the affected items before starting a recovery.');
+      }
       recoveryCase.requests[0].mode = posted.mode;
       if (posted.status) recoveryCase.requests[0].status = posted.status;
       state.cases[current.id] = recoveryCase;
@@ -457,7 +474,12 @@ async function handleRequest(req, res, ctx) {
       sendJson(res, 200, withProblem(order));
       return true;
     }
-    const option = recovery.optionById(order, order.problem, state.cases[orderId].optionId);
+    // Case scope and financial values are frozen at creation, including for
+    // older saved cases that predate item-specific problem reporting.
+    const option = recovery.STEP_COPY[recoveryCase.optionId] && {
+      id: recoveryCase.optionId, title: recoveryCase.title, detail: recoveryCase.detail,
+      outcome: recoveryCase.outcome, amount: recoveryCase.amount
+    };
     if (!option) {
       sendJson(res, 400, { error: 'Choose a recovery option.' });
       return true;
@@ -498,7 +520,7 @@ async function tryHandle(req, res, ctx) {
     if (req.method === 'POST' || cachesOrder) return await serializeMutation(() => handleRequest(req, res, ctx));
     return await handleRequest(req, res, ctx);
   } catch (err) {
-    if (!(err instanceof OrderLookupError)) throw err;
+    if (!(err instanceof OrderLookupError) && !(err instanceof selections.SelectionError)) throw err;
     ctx.sendJson(res, err.status, { error: err.message });
     return true;
   }

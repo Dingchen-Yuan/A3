@@ -9,6 +9,7 @@ const STEPS = [
 
 const view = document.querySelector('#view');
 let selectedOption = null;
+let selectedOptionOrder = null;
 let viewToken = 0;
 
 function esc(value) {
@@ -112,6 +113,7 @@ function route() {
 async function showHome(message) {
   const token = ++viewToken;
   selectedOption = null;
+  selectedOptionOrder = null;
   let orders = [];
   let error = message || '';
   try {
@@ -182,7 +184,7 @@ async function showScreen(id, screen) {
 function itemList(order) {
   return order.items.map(item => `
     <div class="fact">
-      <span>${item.damaged ? 'Needs attention' : 'In this order'}</span>
+      <span>${(item.affectedQty != null ? item.affectedQty > 0 : item.damaged) ? 'Needs attention' : 'In this order'}</span>
       <strong>${esc(item.name)}</strong>
       <span>${esc(item.qty)} ${Number(item.qty) === 1 ? 'unit' : 'units'} · ${money(item.lineTotal != null ? item.lineTotal : item.price * item.qty, order.currency)}</span>
     </div>`).join('');
@@ -194,6 +196,13 @@ function timeline(order) {
       <strong>${esc(event.title)}</strong>
       <span class="when">${esc(event.at)}</span>
     </li>`).join('')}</ol>`;
+}
+
+function recoveryItems(items, currency, partial) {
+  if (!items || !items.length) return '';
+  return `<section class="detail-section recovery-scope"><h2 class="section-title">Items in this recovery</h2>
+    <ul class="recovery-items">${items.map(item => `<li><div><strong>${esc(item.name)}</strong><span>${esc(item.qty)} of ${esc(item.orderedQty)} units affected</span></div><span>${money(item.amount, currency)}</span></li>`).join('')}</ul>
+    ${partial ? '<p class="field-hint">Other items and units in the order stay unchanged.</p>' : ''}</section>`;
 }
 
 function renderUnderstand(order) {
@@ -232,7 +241,7 @@ function renderUnderstand(order) {
     </div></section>
     <details class="integration-info"><summary>SAP connection details</summary><p class="meta">${esc(sourceSummary)}</p><p class="meta" id="sapline" data-order="${esc(order.id)}">Checking the SAP sales-order API…</p></details>
     ${actions(`${next}<a class="text-btn" href="#/">Back to my orders</a>`)}
-    <div id="report"></div>`);
+    `);
   api('/api/assist/sap/sales-orders').then(sap => {
     const line = document.querySelector('#sapline');
     if (!line || line.dataset.order !== order.id) return;
@@ -251,50 +260,103 @@ function renderUnderstand(order) {
   });
   const wrong = document.querySelector('#wrong');
   if (!wrong) return;
-  wrong.addEventListener('click', () => {
-    document.querySelector('#report').innerHTML = `
-      <h2 class="section-title">What went wrong?</h2>
-      <div class="report">
-        <button class="btn secondary" type="button" data-code="DELAY">It’s delayed</button>
-        <button class="btn secondary" type="button" data-code="FAILED_ATTEMPT">It hasn’t arrived</button>
-        <button class="btn secondary" type="button" data-code="DAMAGED">Something arrived damaged</button>
-        <button class="btn secondary" type="button" data-code="MISSING">An item is missing</button>
-      </div>`;
-    const report = document.querySelector('#report');
-    report.onclick = async event => {
-      const code = event.target.dataset && event.target.dataset.code;
-      if (!code || report.dataset.sent === '1') return;
-      report.dataset.sent = '1';
-      event.target.disabled = true;
-      try {
-        await api(`/api/assist/orders/${encodeURIComponent(order.id)}/problem`, {
-          method: 'POST',
-          body: JSON.stringify({ code })
-        });
-        location.hash = `#/order/${encodeURIComponent(order.id)}/problem`;
-      } catch (err) {
-        report.dataset.sent = '';
-        event.target.disabled = false;
-        report.insertAdjacentHTML('beforeend', `<p class="error" role="alert">${esc(err.message)}</p>`);
-      }
-    };
-  });
+  wrong.addEventListener('click', () => { location.hash = orderPath(order.id, 'problem'); });
 }
 
 function renderProblem(order) {
-  if (!order.problem) {
-    location.hash = `#/order/${encodeURIComponent(order.id)}`;
+  if (order.recoveryCase) {
+    location.hash = orderPath(order.id, order.recoveryCase.status === 'closed' ? 'outcome' : 'recovery');
     return;
   }
+  const initialCode = order.problem ? order.problem.code : '';
+  const scoped = code => ['DAMAGED', 'MISSING'].includes(code);
+  const initialItems = scoped(initialCode) ? (order.affectedItems || order.items.flatMap((item, index) =>
+    initialCode === 'DAMAGED' && item.damaged ? [{ itemId: item.itemId || 'line-' + (index + 1), qty: item.qty }] : [])) : [];
+  const initial = new Map(initialItems.map(item => [item.itemId, item.qty]));
+  const rows = order.items.map((item, index) => {
+    const id = item.itemId || 'line-' + (index + 1);
+    const picked = initial.has(id);
+    const qty = picked ? initial.get(id) : Math.min(1, item.qty);
+    return `<div class="problem-item ${picked ? 'selected' : ''}" data-index="${index}">
+      <label class="problem-item-label"><input class="affected-check" type="checkbox" value="${esc(id)}" ${picked ? 'checked' : ''}>
+        <span><strong>${esc(item.name)}</strong><span class="meta">${esc(item.qty)} ordered · ${money(item.lineTotal != null ? item.lineTotal : item.price * item.qty, order.currency)}</span></span></label>
+      <label class="quantity-label">Quantity affected<input class="affected-qty" type="number" min="${Number.isInteger(item.qty) ? 1 : 0}" max="${item.qty}" step="${Number.isInteger(item.qty) ? 1 : 'any'}" value="${qty}" aria-label="Quantity affected for ${esc(item.name)}" ${picked ? '' : 'disabled'}></label>
+    </div>`;
+  }).join('');
   paint(`
     ${progress(3)}
     <div class="issue-symbol" aria-hidden="true">${icon('alert')}</div>
-    <h1>${esc(order.problem.title)}</h1>
-    <p class="lead">${esc(order.problem.detail)}</p>
-    <div class="banner">Found ${esc(order.problem.foundAt)}. Order ${esc(order.customerReference || order.id)}.</div>
-    ${actions(`
-      <a class="btn block" href="${orderPath(order.id, 'choose')}">This is the problem</a>
-      <a class="text-btn" href="${orderPath(order.id)}">Back</a>`)}`);
+    <h1>${order.problem ? 'Confirm the delivery problem' : 'What went wrong with your delivery?'}</h1>
+    <p class="lead">Choose the issue. For damaged or missing items, select exactly which items and quantities need a recovery.</p>
+    ${order.problem ? `<div class="banner">Current update: ${esc(order.problem.detail)}<br>Found ${esc(order.problem.foundAt)}. Order ${esc(order.customerReference || order.id)}.</div>` : ''}
+    <form id="problemForm" class="problem-form">
+      <label class="field-label" for="problemCode">What happened?</label>
+      <select class="problem-select" id="problemCode" required>
+        <option value="">Choose a delivery problem</option>
+        ${[['DELAY', 'It’s delayed'], ['FAILED_ATTEMPT', 'It hasn’t arrived / delivery attempt failed'], ['DAMAGED', 'Something arrived damaged'], ['MISSING', 'An item is missing']].map(([code, label]) => `<option value="${code}" ${initialCode === code ? 'selected' : ''}>${label}</option>`).join('')}
+      </select>
+      <fieldset class="affected-picker" id="affectedPicker"><legend>Which items are affected?</legend><p class="field-hint">Choose each affected item and enter no more than the quantity ordered. You’ll review the exact recovery value on the next screen.</p>${rows}</fieldset>
+      <p class="field-hint" id="selectionHint" role="status" aria-live="polite"></p>
+      <p class="error" id="problemError" role="alert" hidden></p>
+      ${actions(`<button class="btn block" id="reviewProblem" type="submit">Review recovery options</button><a class="text-btn" href="${orderPath(order.id)}">Back</a>`)}
+    </form>`);
+  const form = document.querySelector('#problemForm');
+  const codeInput = document.querySelector('#problemCode');
+  const picker = document.querySelector('#affectedPicker');
+  const button = document.querySelector('#reviewProblem');
+  let submitting = false;
+  const readSelection = () => {
+    const code = codeInput.value;
+    const needsItems = scoped(code);
+    picker.hidden = !needsItems;
+    picker.disabled = !needsItems;
+    const selected = [];
+    let error = code ? '' : 'Choose what went wrong.';
+    form.querySelectorAll('.problem-item').forEach(row => {
+      const check = row.querySelector('.affected-check');
+      const input = row.querySelector('.affected-qty');
+      const item = order.items[Number(row.dataset.index)];
+      const qty = Number(input.value);
+      input.disabled = !needsItems || !check.checked;
+      row.classList.toggle('selected', check.checked);
+      const invalid = needsItems && check.checked && (!input.value || !Number.isFinite(qty) || qty <= 0 || qty > item.qty || (Number.isInteger(item.qty) && !Number.isInteger(qty)));
+      input.setAttribute('aria-invalid', String(Boolean(invalid)));
+      if (needsItems && check.checked) selected.push({ itemId: check.value, qty });
+      if (invalid) error = `Enter a valid quantity for ${item.name}, up to ${item.qty} ordered.`;
+    });
+    if (needsItems && !selected.length) error = 'Choose at least one affected item.';
+    document.querySelector('#selectionHint').textContent = error || (needsItems ? 'Only the selected items and quantities will be included.' : 'This issue applies to the whole delivery.');
+    button.disabled = submitting || Boolean(error);
+    return { code, selected, valid: !error };
+  };
+  form.addEventListener('input', () => { document.querySelector('#problemError').hidden = true; readSelection(); });
+  codeInput.addEventListener('change', () => {
+    form.querySelectorAll('.problem-item').forEach(row => {
+      row.querySelector('.affected-check').checked = false;
+      row.querySelector('.affected-qty').value = Math.min(1, order.items[Number(row.dataset.index)].qty);
+    });
+    readSelection();
+  });
+  form.addEventListener('change', readSelection);
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const selected = readSelection();
+    if (!selected.valid || submitting) return;
+    const token = viewToken;
+    submitting = true; readSelection();
+    const body = { code: selected.code };
+    if (scoped(selected.code)) body.affectedItems = selected.selected;
+    try {
+      await api(`/api/assist/orders/${encodeURIComponent(order.id)}/problem`, { method: 'POST', body: JSON.stringify(body) });
+      if (token === viewToken) { selectedOption = null; location.hash = orderPath(order.id, 'choose'); }
+    } catch (err) {
+      if (token !== viewToken) return;
+      submitting = false; readSelection();
+      const slot = document.querySelector('#problemError');
+      slot.hidden = false; slot.textContent = err.message;
+    }
+  });
+  readSelection();
 }
 
 function renderChoose(order, keepScroll) {
@@ -302,9 +364,18 @@ function renderChoose(order, keepScroll) {
     location.hash = `#/order/${encodeURIComponent(order.id)}`;
     return;
   }
-  if (!selectedOption) {
+  if (order.recoveryCase) {
+    location.hash = orderPath(order.id, order.recoveryCase.status === 'closed' ? 'outcome' : 'recovery');
+    return;
+  }
+  if (order.requiresItemSelection || !order.options.length) {
+    location.hash = orderPath(order.id, 'problem');
+    return;
+  }
+  if (selectedOptionOrder !== order.id || !order.options.some(option => option.id === selectedOption)) {
     const recommended = order.options.find(option => option.recommended);
     selectedOption = recommended ? recommended.id : (order.options[0] && order.options[0].id);
+    selectedOptionOrder = order.id;
   }
   const choices = order.options.map(option => `
     <button class="choice ${option.id === selectedOption ? 'selected' : ''}" type="button" data-option="${esc(option.id)}" aria-pressed="${option.id === selectedOption}">
@@ -318,6 +389,7 @@ function renderChoose(order, keepScroll) {
     ${progress(4)}
     <h1>What would you like to do?</h1>
     <p class="lead">Pick one. You can still go back before anything is confirmed.</p>
+    ${recoveryItems(order.affectedItems, order.currency, order.selectionIsPartial)}
     <div class="cards choice-grid" id="choices">${choices}</div>
     <p class="error" id="err" role="alert" hidden></p>
     ${actions(`
@@ -368,6 +440,7 @@ function renderRecovery(order) {
     ${progress(5)}
     <h1>${esc(recoveryCase.steps[recoveryCase.stepIndex])}</h1>
     <p class="lead">Case ${esc(recoveryCase.id)}. This stays here until the recovery is finished.</p>
+    ${recoveryItems(recoveryCase.affectedItems, recoveryCase.currency || order.currency, recoveryCase.selectionIsPartial)}
     <ol class="steps">${steps}</ol>
     <p class="error" id="err" role="alert" hidden></p>
     ${actions(`
@@ -394,6 +467,7 @@ function renderRecovery(order) {
 }
 
 function outcomeText(recoveryCase, order) {
+  if (recoveryCase.outcomeCopy) return recoveryCase.outcomeCopy;
   const item = (order.items.find(entry => entry.damaged) || order.items[0]).name;
   const closed = recoveryCase.status === 'closed';
   if (recoveryCase.outcome === 'refund') {
@@ -449,6 +523,7 @@ function renderOutcome(order) {
     ${closed ? '<div class="done-mark" aria-hidden="true">✓</div>' : ''}
     <h1>${esc(copy.heading)}</h1>
     <p class="lead">${esc(copy.lead)}</p>
+    ${recoveryItems(recoveryCase.affectedItems, recoveryCase.currency || order.currency, recoveryCase.selectionIsPartial)}
     <div class="facts">
       <div class="fact"><span>Case</span><strong>${esc(recoveryCase.id)}</strong></div>
       <div class="fact"><span>Sales order</span><strong>${esc(order.salesOrder)}</strong></div>

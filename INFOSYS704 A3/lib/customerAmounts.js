@@ -72,6 +72,23 @@ function lineTotal(item, currency = 'AUD') {
   return fromMinor(lineTotalMinor(item, currency), currency);
 }
 
+function partialLineMinor(item, qty, currency = 'AUD') {
+  if (!Number.isFinite(Number(qty)) || Number(qty) <= 0 || Number(qty) > Number(item.qty) || Number(item.qty) <= 0) {
+    throw new RangeError('Invalid affected quantity');
+  }
+  const total = lineTotalMinor(item, currency);
+  if (total < 0) throw new RangeError('Invalid line total');
+  const selected = decimalParts(qty), ordered = decimalParts(item.qty);
+  let numerator = BigInt(total) * selected.coefficient;
+  let denominator = ordered.coefficient;
+  const shift = ordered.scale - selected.scale;
+  if (shift >= 0) numerator *= 10n ** BigInt(shift);
+  else denominator *= 10n ** BigInt(-shift);
+  // Round the selected proportion of the authoritative line total once. In
+  // particular, 2 of 3 units on a $1 line are 67 cents, not 2 x 33 cents.
+  return safeInteger(numerator / denominator + (numerator % denominator * 2n >= denominator ? 1n : 0n));
+}
+
 function sumMinor(items, currency = 'AUD') {
   return safeInteger((items || []).reduce((sum, item) => sum + BigInt(lineTotalMinor(item, currency)), 0n));
 }
@@ -82,4 +99,4 @@ function money(value, currency = 'AUD') {
   }).format(Number(value) || 0);
 }
 
-module.exports = { currencyCode, currencyFor, toMinor, fromMinor, lineTotalMinor, lineTotal, sumMinor, money };
+module.exports = { currencyCode, currencyFor, toMinor, fromMinor, lineTotalMinor, lineTotal, partialLineMinor, sumMinor, money };
