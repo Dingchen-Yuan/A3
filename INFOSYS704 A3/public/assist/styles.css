@@ -73,6 +73,8 @@ h1:focus, main:focus { outline: none; }
 .journey-note p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 main { min-width: 0; min-height: 560px; padding: 36px 40px 32px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
 .assist-footer { display: flex; justify-content: space-between; gap: 16px; width: calc(100% - 64px); max-width: 1240px; margin: 0 auto; padding: 0 0 26px; color: var(--muted); font-size: 11px; }
+.assist-footer a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--muted); font-weight: 600; text-decoration: none; }
+.assist-footer a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 
 /* Typography and the six-step progress indicator */
 .kicker { margin: 26px 0 8px; color: var(--red-dark); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }

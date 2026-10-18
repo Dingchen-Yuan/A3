@@ -1,9 +1,10 @@
-# Kmart Supply Hub – Anko Mix-Lock & Delivery Tracker
+# Kmart Delivery Assist – Delivery Tracking & Recovery
 
-INFOSYS 704 A3 prototype for Kmart Group (Wesfarmers). This internal tool for Anko buyers runs on the **SAP S/4HANA Cloud Purchase Order API (A2X, OData V4)**.
+INFOSYS 704 A3 prototype for Kmart Group (Wesfarmers). **Delivery Assist is the main strategic customer solution:** track an order, understand a delivery problem, choose a recovery and confirm the outcome. Supply Hub remains a secondary workspace for Anko buyers using the **SAP S/4HANA Cloud Purchase Order API (A2X, OData V4)**.
 
 | Module | Business problem | Journey |
 | --- | --- | --- |
+| **Delivery Assist (main app)** | Customers lack one clear journey from a delivery problem to a confirmed recovery. | Track my order → Understand what is happening → Identify a delivery problem → Choose what to do → Track the recovery → Complete refund/replacement |
 | **Mix-Lock** | Anko commits the full colour/size mix ~9 months out; wrong guesses end up as markdowns. | Select line → Review signal → Adjust mix → Confirm mix lock |
 | **Delivery Tracker** | Inbound delivery problems (late, short, damaged, rejected) are found late and handled by email. | Track → Understand → Identify problem → Choose action → Track recovery → Complete |
 
@@ -17,11 +18,11 @@ cp .env.example .env      # then paste your own SAP API key into .env
 node server.js
 ```
 
-Open <http://localhost:3000>.
+Open <http://localhost:3000> for **Delivery Assist**. The **Supply Hub buyer workspace** is at <http://localhost:3000/supply-hub>. The earlier `/assist/index.html` address still works, and old buyer hash bookmarks such as `/#/deliveries` forward to Supply Hub.
 
-- **Without a key**, the app still runs. It reads POs from the saved snapshot in `data/sap_cache.json`, and the header shows "SAP · cached snapshot".
-- **With a key**, reads are live from the SAP sandbox ("SAP sandbox · live"). Each successful read refreshes the snapshot.
-- **Reset demo** (sidebar) clears all locks, recovery cases and saved SAP requests.
+- **Without a key**, the customer demo catalogue and simulated recoveries still work. Supply Hub reads POs from `data/sap_cache.json`, and its header shows "SAP · cached snapshot".
+- **With a key**, Supply Hub supports live SAP purchase-order reads and refreshes its snapshot. Delivery Assist can also query the sales-order API; the four customer demo timelines remain simulated.
+- **Reset demo** in the buyer sidebar clears buyer locks, recovery cases and saved SAP requests. Customer orders have a separate "Start this order again" action.
 
 ## SAP integration
 
@@ -78,7 +79,8 @@ INFOSYS704 A3/
 ├── server.js               HTTP server, SAP read + cache, write adapter, problem detection
 ├── .env.example            copy to .env (git-ignored)
 ├── public/
-│   ├── index.html          app shell
+│   ├── index.html          buyer shell (served at /supply-hub)
+│   ├── assist/             main customer app (served at /)
 │   ├── styles.css          design system
 │   ├── app.js              all screens (hash routing)
 │   ├── allocation.js       mix allocation maths
@@ -96,7 +98,7 @@ Map tiles © OpenStreetMap contributors. Leaflet is BSD-2-licensed (`public/vend
 
 ## Customer Delivery Assist
 
-The inbound tracker above stays the buyer tool. Delivery Assist is the customer journey from the approved solution, served beside it at [http://localhost:3000/assist/index.html](http://localhost:3000/assist/index.html). It does not change Mix-Lock or the purchase-order recovery cases.
+Delivery Assist is the default experience at [http://localhost:3000](http://localhost:3000). The inbound tracker and Mix-Lock remain separate buyer tools at `/supply-hub`; customer recovery does not read or write their state.
 
 1. Track my order
 2. Understand what is happening
@@ -114,8 +116,24 @@ The inbound tracker above stays the buyer tool. Delivery Assist is the customer 
 
 A delay finishes as a replacement or a refund. The service request uses `OP_API_SERVICE_REQUEST_SRV_0001`. `API_BILLING_DOCUMENT_REQUEST_SRV` is not used to create a refund. Sales orders are read with `API_SALES_ORDER_SRV`, `$top=5`, `$select` and `$expand=to_Item`, using the same `SAP_API_KEY`. The sandbox root is taken from `SAP_BASE_URL` by dropping the purchase-order path.
 
+### Recovery safeguards
+
+- A case can only complete after reaching its final recovery step (`ready`).
+- Completing a closed case again returns the existing result without another request.
+- Customer-state mutations are serialized within the Node server so concurrent clicks cannot create duplicate confirmed requests or overwrite another order's case.
+- In `live` mode, missing credentials, SAP errors and timeouts return an error rather than silently switching to simulation. Failed creation saves no confirmed case; failed completion leaves the case ready to retry.
+- Reporting another problem or choosing a different option cannot silently erase an existing case. Restarting remains an explicit demo action.
+
+Refund/replacement confirmations are prototype outcomes, not actual payments or replacement dispatches. These safeguards do not add a payment integration or resolve the separate SAP-only order lookup and line-total mapping limitations.
+
+### Tests
+
 ```bash
 node tests/customerRecovery.test.js
+node tests/customerAssist.test.js
+node tests/navigation.test.js
 ```
+
+The API safeguard tests use in-memory state and mocked SAP responses. Navigation tests use a temporary local port. Neither test resets your saved demo state or sends SAP writes.
 
 Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.

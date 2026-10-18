@@ -52,7 +52,7 @@ svg.i-lg { width: 22px; height: 22px; }
 .nav a:hover { background: #293E53; color: #fff; }
 .nav a.active { background: #fff; color: var(--red-700); font-weight: 650; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .nav a.active::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--red); }
-.nav a[href="/assist/index.html"] { border: 1px solid #4B5D70; margin-top: 2px; color: #fff; }
+.nav a.customer-link { border: 1px solid #4B5D70; margin-top: 2px; color: #fff; }
 .nav-arrow { margin-left: auto; }
 .nav .count { margin-left: auto; font-size: 11px; font-weight: 700; background: var(--danger); color: #fff; border-radius: 999px; padding: 1px 7px; }
 .sidebar-foot { padding: 22px; border-top: 1px solid #35485C; font-size: 10px; line-height: 1.8; color: #ADBCCC; }

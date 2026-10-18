@@ -90,6 +90,11 @@ function paint(html, keepScroll) {
 function route() {
   const parts = (location.hash || '#/').replace(/^#\/?/, '').split('/').filter(Boolean);
   const [head, id, screen] = parts;
+  // Keep old Supply Hub bookmarks working after Delivery Assist becomes home.
+  if (['mixlock', 'line', 'adjust', 'confirm', 'locked', 'deliveries', 'delivery', 'case', 'history'].includes(head)) {
+    location.replace('/supply-hub' + location.hash);
+    return;
+  }
   if (head === 'order' && id && screen) return showScreen(id, screen);
   if (head === 'order' && id) return showScreen(id, 'understand');
   return showHome();

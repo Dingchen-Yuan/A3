@@ -167,7 +167,17 @@ function advance(recoveryCase) {
   return recoveryCase;
 }
 
+function canComplete(recoveryCase) {
+  return Boolean(recoveryCase && recoveryCase.status === 'ready' &&
+    Array.isArray(recoveryCase.steps) && recoveryCase.steps.length &&
+    recoveryCase.stepIndex === recoveryCase.steps.length - 1);
+}
+
 function complete(recoveryCase, order, option) {
+  if (recoveryCase && recoveryCase.status === 'closed') return recoveryCase;
+  if (!canComplete(recoveryCase)) {
+    throw new Error('This recovery is not ready to complete. Check for an update first.');
+  }
   recoveryCase.stepIndex = recoveryCase.steps.length - 1;
   recoveryCase.status = 'closed';
   recoveryCase.updatedAt = new Date().toISOString();
@@ -228,6 +238,7 @@ module.exports = {
   refundDetail,
   createCase,
   advance,
+  canComplete,
   complete,
   outcomeCopy,
   serviceRequestBody

@@ -43,6 +43,10 @@ assert.strictEqual(created.requests[0].body.api, 'OP_API_SERVICE_REQUEST_SRV_000
 assert.strictEqual(created.requests[0].body.SalesOrder, '450218');
 assert.strictEqual(created.requests[0].body.ResolutionCode, 'REPLACEMENT');
 assert.strictEqual(created.detail, option.detail);
+assert.strictEqual(recovery.canComplete(created), false);
+const beforeEarlyCompletion = JSON.stringify(created);
+assert.throws(() => recovery.complete(created, damaged, option), /not ready/);
+assert.strictEqual(JSON.stringify(created), beforeEarlyCompletion);
 
 const partial = recovery.outcomeCopy(
   recovery.createCase({ order: damaged, problem: damaged.problem, option: damagedOptions[1] }),
@@ -60,14 +64,27 @@ recovery.advance(created);
 assert.strictEqual(created.status, 'open');
 recovery.advance(created);
 assert.strictEqual(created.status, 'ready');
+assert.strictEqual(recovery.canComplete(created), true);
 recovery.advance(created);
 assert.strictEqual(created.stepIndex, created.steps.length - 1);
 
 const refund = recovery.optionById(damaged, damaged.problem, 'refund');
 const refundCase = recovery.createCase({ order: damaged, problem: damaged.problem, option: refund });
+recovery.advance(refundCase);
+recovery.advance(refundCase);
 recovery.complete(refundCase, damaged, refund);
 assert.strictEqual(refundCase.status, 'closed');
 assert.strictEqual(refundCase.requests.at(-1).body.ServiceRequestStatus, 'Completed');
 assert.match(refundCase.requests.at(-1).body.settlement, /cannot create a refund/);
+const completedSnapshot = JSON.stringify(refundCase);
+recovery.complete(refundCase, damaged, refund);
+recovery.advance(refundCase);
+assert.strictEqual(JSON.stringify(refundCase), completedSnapshot);
+assert.strictEqual(refundCase.requests.length, 2);
+
+const inconsistent = recovery.createCase({ order: damaged, problem: damaged.problem, option: refund });
+inconsistent.status = 'ready';
+assert.strictEqual(recovery.canComplete(inconsistent), false);
+assert.throws(() => recovery.complete(inconsistent, damaged, refund), /not ready/);
 
 console.log('recovery tests passed');

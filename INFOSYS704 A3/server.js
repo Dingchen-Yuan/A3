@@ -1,4 +1,4 @@
-// Kmart Supply Hub – Anko Mix-Lock + Delivery Tracker
+// Kmart Delivery Assist, with the Supply Hub buyer workspace.
 // Node 18+ (built-in fetch). No npm dependencies.
 
 const http = require('http');
@@ -656,18 +656,28 @@ const server = http.createServer(async (req, res) => {
     if (p.startsWith('/api/')) return sendJson(res, 404, { error: 'Unknown API route' });
 
     // ----- static -----
-    const rel = p === '/' ? 'index.html' : p.replace(/^\/+/, '');
+    if (['/supply-hub', '/supply-hub/', '/supply-hub/index.html'].includes(p)) {
+      return sendFile(res, path.join(PUBLIC_DIR, 'index.html'));
+    }
+    const customerHome = ['/', '/index.html', '/assist', '/assist/', '/assist/index.html'].includes(p);
+    const rel = customerHome ? 'assist/index.html' : p.replace(/^\/+/, '');
     const filePath = path.resolve(PUBLIC_DIR, rel);
     if (filePath.startsWith(PUBLIC_DIR + path.sep) && fs.existsSync(filePath) && fs.statSync(filePath).isFile()) return sendFile(res, filePath);
-    return sendFile(res, path.join(PUBLIC_DIR, 'index.html'));
+    return sendFile(res, path.join(PUBLIC_DIR, 'assist', 'index.html'));
   } catch (e) {
     console.error(e);
     sendJson(res, 500, { error: e.message });
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Kmart Supply Hub running on http://localhost:${PORT}`);
-  console.log(`SAP base: ${SAP_BASE}`);
-  console.log(`SAP key: ${SAP_KEY ? 'set' : 'NOT set (cached SAP data will be used)'} · write mode: ${SAP_MODE}`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    const port = server.address().port;
+    console.log(`Kmart Delivery Assist running on http://localhost:${port}`);
+    console.log(`Supply Hub buyer workspace: http://localhost:${port}/supply-hub`);
+    console.log(`SAP base: ${SAP_BASE}`);
+    console.log(`SAP key: ${SAP_KEY ? 'set' : 'NOT set (cached SAP data will be used)'} · write mode: ${SAP_MODE}`);
+  });
+}
+
+module.exports = server;

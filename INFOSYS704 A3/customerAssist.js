@@ -9,6 +9,16 @@ const { allOrders, findOrder, REPORTABLE } = require('./data/customerOrders');
 const { SALES_ORDER_PATH } = require('./lib/salesOrderQuery');
 
 const STATE_FILE = path.join(__dirname, 'data', 'customer_state.json');
+const SAP_TIMEOUT_MS = 8000;
+
+// This prototype stores all customer cases in one JSON file. Serialize mutations
+// so concurrent clicks cannot post twice or overwrite another order's changes.
+let mutationQueue = Promise.resolve();
+function serializeMutation(fn) {
+  const result = mutationQueue.then(fn);
+  mutationQueue = result.catch(() => {});
+  return result;
+}
 
 function salesRoot(sapBase) {
   const base = String(sapBase || '').replace(/\/+$/, '');
@@ -34,7 +44,8 @@ async function sapGet(root, key, sapPath) {
   let res;
   try {
     res = await fetch(root + sapPath, {
-      headers: { APIKey: key, Accept: 'application/json' }
+      headers: { APIKey: key, Accept: 'application/json' },
+      signal: AbortSignal.timeout(SAP_TIMEOUT_MS)
     });
   } catch (err) {
     return null;
@@ -46,7 +57,8 @@ async function sapGet(root, key, sapPath) {
 }
 
 async function sapPost(root, key, mode, sapPath, body) {
-  if (mode !== 'live' || !root || !key) return { mode: 'simulate' };
+  if (mode !== 'live') return { mode: 'simulate', ok: true };
+  if (!root || !key) return { mode: 'live', ok: false, error: 'SAP is not configured.' };
   try {
     const res = await fetch(root + sapPath, {
       method: 'POST',
@@ -55,12 +67,13 @@ async function sapPost(root, key, mode, sapPath, body) {
         Accept: 'application/json',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(SAP_TIMEOUT_MS)
     });
     const text = await res.text();
-    return { mode: res.ok ? 'live' : 'simulate', status: res.status, response: text.slice(0, 500) };
+    return { mode: 'live', ok: res.ok, status: res.status, response: text.slice(0, 500) };
   } catch (err) {
-    return { mode: 'simulate', error: err.message };
+    return { mode: 'live', ok: false, error: err.message };
   }
 }
 
@@ -203,7 +216,7 @@ async function orderFromSap(root, key, salesOrder) {
   };
 }
 
-async function tryHandle(req, res, ctx) {
+async function handleRequest(req, res, ctx) {
   const url = new URL(req.url, 'http://localhost');
   const pathname = url.pathname;
   if (!pathname.startsWith('/api/assist')) return false;
@@ -267,8 +280,11 @@ async function tryHandle(req, res, ctx) {
         return true;
       }
       const state = readState();
+      if (state.cases[order.id]) {
+        sendJson(res, 409, { error: 'A recovery already exists for this order. Continue it, or restart the order before reporting another problem.' });
+        return true;
+      }
       state.problems[order.id] = problem;
-      delete state.cases[order.id];
       writeState(state);
       sendJson(res, 200, withProblem(catalogueOrder(order.id)));
       return true;
@@ -301,11 +317,19 @@ async function tryHandle(req, res, ctx) {
       }
       const state = readState();
       if (state.cases[current.id]) {
+        if (state.cases[current.id].optionId !== option.id) {
+          sendJson(res, 409, { error: 'A recovery already exists with a different option. Continue your existing recovery.' });
+          return true;
+        }
         sendJson(res, 200, withProblem(current));
         return true;
       }
       const recoveryCase = recovery.createCase({ order: current, problem: current.problem, option });
       const posted = await sapPost(root, key, mode, '/sap/opu/odata/sap/OP_API_SERVICE_REQUEST_SRV_0001/A_ServiceRequest', recoveryCase.requests[0].body);
+      if (!posted.ok) {
+        sendJson(res, 502, { error: 'We could not send your recovery request to SAP. Nothing has been confirmed. Please try again.', sapStatus: posted.status || null });
+        return true;
+      }
       recoveryCase.requests[0].mode = posted.mode;
       if (posted.status) recoveryCase.requests[0].status = posted.status;
       state.cases[current.id] = recoveryCase;
@@ -325,17 +349,36 @@ async function tryHandle(req, res, ctx) {
       return true;
     }
     const order = catalogueOrder(orderId);
+    if (!order) {
+      sendJson(res, 404, { error: 'We can’t find the order linked to this recovery.' });
+      return true;
+    }
+    const recoveryCase = state.cases[orderId];
+    if (recoveryCase.status === 'closed') {
+      sendJson(res, 200, withProblem(order));
+      return true;
+    }
     const option = recovery.optionById(order, order.problem, state.cases[orderId].optionId);
     if (!option) {
       sendJson(res, 400, { error: 'Choose a recovery option.' });
       return true;
     }
     if (caseMatch[2] === 'advance') {
-      recovery.advance(state.cases[orderId]);
+      recovery.advance(recoveryCase);
     } else {
-      recovery.complete(state.cases[orderId], order, option);
-      const last = state.cases[orderId].requests.at(-1);
+      if (!recovery.canComplete(recoveryCase)) {
+        sendJson(res, 409, { error: 'This recovery is not ready to complete. Check for an update first.' });
+        return true;
+      }
+      recovery.complete(recoveryCase, order, option);
+      const last = recoveryCase.requests.at(-1);
       const posted = await sapPost(root, key, mode, '/sap/opu/odata/sap/OP_API_SERVICE_REQUEST_SRV_0001/A_ServiceRequest', last.body);
+      if (!posted.ok) {
+        // The edited case exists only in this local copy. Do not save it as
+        // closed unless SAP confirms the write; the persisted case stays ready.
+        sendJson(res, 502, { error: 'We could not confirm this recovery with SAP. Your case is still ready to complete. Please try again.', sapStatus: posted.status || null });
+        return true;
+      }
       last.mode = posted.mode;
       if (posted.status) last.status = posted.status;
     }
@@ -346,6 +389,13 @@ async function tryHandle(req, res, ctx) {
 
   sendJson(res, 404, { error: 'Unknown API route' });
   return true;
+}
+
+async function tryHandle(req, res, ctx) {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  if (!pathname.startsWith('/api/assist')) return false;
+  if (req.method === 'POST') return serializeMutation(() => handleRequest(req, res, ctx));
+  return handleRequest(req, res, ctx);
 }
 
 module.exports = { tryHandle, salesRoot };
