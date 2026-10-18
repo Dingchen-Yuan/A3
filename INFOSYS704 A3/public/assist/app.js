@@ -21,6 +21,25 @@ function money(n) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(Number(n) || 0);
 }
 
+const ICONS = {
+  box: '<path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+  right: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+  check: '<path d="m5 12 4 4L19 6"/>',
+  alert: '<path d="m12 3 10 18H2L12 3zm0 6v4m0 4h.01"/>',
+  lamp: '<path d="m8 3-4 10h16L16 3H8zm4 10v7m-4 1h8"/>',
+  textile: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18m4-18v18m4-18v18M4 16h16"/>'
+};
+
+function icon(name) {
+  return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.box}</svg>`;
+}
+
+function productIcon(name) {
+  if (/lamp/i.test(name)) return 'lamp';
+  return /towel|throw|cover/i.test(name) ? 'textile' : 'box';
+}
+
 async function api(path, opts) {
   const res = await fetch(path, Object.assign({
     headers: { 'Content-Type': 'application/json' }
@@ -34,10 +53,20 @@ function progress(step, total = 6) {
   if (!step) return '';
   const label = STEPS[step - 1][1];
   return `
-    <div class="progress" aria-label="Step ${step} of ${total}, ${esc(label)}">
-      <div class="progress-label"><span>${step} of ${total}</span> ${esc(label)}</div>
+    <div class="progress" data-step="${step}" aria-label="Step ${step} of ${total}, ${esc(label)}">
+      <div class="progress-label"><span>Step ${step} of ${total}</span><strong>${esc(label)}</strong></div>
       <div class="bar" aria-hidden="true"><i style="width:${Math.round(step / total * 100)}%"></i></div>
     </div>`;
+}
+
+function updateJourney(step) {
+  const list = document.querySelector('#journeyList');
+  if (!list) return;
+  list.innerHTML = STEPS.map(([number, label]) => `
+    <li class="${number === step ? 'current' : number < step ? 'done' : ''}" ${number === step ? 'aria-current="step"' : ''}>
+      <span class="journey-number" aria-hidden="true">${number < step ? icon('check') : String(number).padStart(2, '0')}</span>
+      <span>${esc(label)}</span>
+    </li>`).join('');
 }
 
 function actions(html) {
@@ -46,6 +75,7 @@ function actions(html) {
 
 function paint(html, keepScroll) {
   view.innerHTML = `<div class="view">${html}</div>`;
+  updateJourney(Number(view.querySelector('.progress')?.dataset.step) || 1);
   if (keepScroll) return;
   const phone = document.querySelector('#phone');
   if (phone) phone.scrollTop = 0;
@@ -79,23 +109,28 @@ async function showHome(message) {
   if (token !== viewToken) return;
   const cards = orders.map(order => `
     <a class="card-link" href="#/order/${esc(order.id)}">
+      <div class="order-card-top"><span class="product-icon">${icon(productIcon(order.item))}</span><span class="order-reference">${esc(order.id)}</span>${icon('right')}</div>
       <strong>${esc(order.item)}</strong>
-      <div class="meta">${esc(order.id)} · ${esc(order.promise)}</div>
-      <span class="pill ${order.tone === 'problem' ? 'problem' : 'ok'}">${esc(order.summary)}</span>
-      ${order.caseLabel ? `<span class="pill ${order.caseStatus === 'closed' ? 'ok' : 'problem'}">${esc(order.caseLabel)}</span>` : ''}
+      <div class="meta">Promised ${esc(order.promise)}</div>
+      <div class="order-status"><span class="pill ${order.tone === 'problem' ? 'problem' : 'ok'}">${esc(order.summary)}</span>
+      ${order.caseLabel ? `<span class="pill ${order.caseStatus === 'closed' ? 'ok' : 'problem'}">${esc(order.caseLabel)}</span>` : ''}</div>
     </a>`).join('');
   paint(`
+    ${progress(1)}
     <p class="kicker">Your orders</p>
     <h1>Track my order</h1>
     <p class="lead">See where your order is. If it is delayed or something has gone wrong, choose what to do, then finish with a refund or a replacement.</p>
-    <form class="search" id="find">
-      <label class="sr" for="q" style="position:absolute;left:-999px">Order number</label>
-      <input id="q" name="q" inputmode="text" autocomplete="off" placeholder="Order or sales order number" />
-      <button class="btn" type="submit">Track</button>
-    </form>
+    <div class="tracking-panel">
+      <label class="field-label" for="q">Find your order</label>
+      <form class="search" id="find">
+        <div class="search-field">${icon('search')}<input id="q" name="q" inputmode="text" autocomplete="off" aria-describedby="orderHint" placeholder="Order or sales order number" /></div>
+        <button class="btn" type="submit">Track order ${icon('right')}</button>
+      </form>
+      <p class="field-hint" id="orderHint">Use the order number from your confirmation email, or choose an order below.</p>
+    </div>
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ''}
-    <h2 class="section-title">Recent orders</h2>
-    <div class="cards">${cards}</div>`);
+    <div class="section-heading"><h2>Recent orders</h2><span>${orders.length} orders</span></div>
+    <div class="cards order-grid">${cards || '<div class="empty-state">No orders are available right now. Try an order number above.</div>'}</div>`);
   document.querySelector('#find').addEventListener('submit', async event => {
     event.preventDefault();
     const q = document.querySelector('#q').value.trim();
@@ -168,15 +203,15 @@ function renderUnderstand(order) {
     <h1>${esc(order.headline)}</h1>
     <p class="lead">${esc(order.customer)}, this is home delivery to ${esc(order.address)}. Promised ${esc(order.promise)}.</p>
     ${banner}
-    ${timeline(order)}
-    <div class="facts">${itemList(order)}</div>
-    <div class="facts">
+    <section class="detail-section"><h2 class="section-title">Delivery timeline</h2>${timeline(order)}</section>
+    <section class="detail-section"><h2 class="section-title">Items in this order</h2><div class="facts">${itemList(order)}</div></section>
+    <section class="detail-section"><h2 class="section-title">Order details</h2><div class="facts">
       <div class="fact"><span>Sales order</span><strong>${esc(order.salesOrder)}</strong></div>
       <div class="fact"><span>Delivery</span><strong>${esc(order.outboundDelivery || '—')}</strong></div>
       <div class="fact"><span>Freight order</span><strong>${esc(order.freightOrder || '—')}</strong></div>
       <div class="fact"><span>Packed at</span><strong>${esc(order.node)}</strong></div>
-    </div>
-    <p class="meta" id="sapline" data-order="${esc(order.id)}">Checking the SAP sales-order API…</p>
+    </div></section>
+    <details class="integration-info"><summary>SAP connection details</summary><p class="meta" id="sapline" data-order="${esc(order.id)}">Checking the SAP sales-order API…</p></details>
     ${actions(`${next}<a class="text-btn" href="#/">Back to my orders</a>`)}
     <div id="report"></div>`);
   api('/api/assist/sap/sales-orders').then(sap => {
@@ -234,6 +269,7 @@ function renderProblem(order) {
   }
   paint(`
     ${progress(3)}
+    <div class="issue-symbol" aria-hidden="true">${icon('alert')}</div>
     <h1>${esc(order.problem.title)}</h1>
     <p class="lead">${esc(order.problem.detail)}</p>
     <div class="banner">Found ${esc(order.problem.foundAt)}. Order ${esc(order.id)}.</div>
@@ -253,6 +289,7 @@ function renderChoose(order, keepScroll) {
   }
   const choices = order.options.map(option => `
     <button class="choice ${option.id === selectedOption ? 'selected' : ''}" type="button" data-option="${esc(option.id)}" aria-pressed="${option.id === selectedOption}">
+      <span class="choice-indicator" aria-hidden="true">${icon('check')}</span>
       ${option.recommended ? '<span class="badge">Recommended</span>' : ''}
       <strong>${esc(option.title)}</strong>
       <div class="meta">${esc(option.detail)}</div>
@@ -262,7 +299,7 @@ function renderChoose(order, keepScroll) {
     ${progress(4)}
     <h1>What would you like to do?</h1>
     <p class="lead">Pick one. You can still go back before anything is confirmed.</p>
-    <div class="cards" id="choices">${choices}</div>
+    <div class="cards choice-grid" id="choices">${choices}</div>
     <p class="error" id="err" role="alert" hidden></p>
     ${actions(`
       <button class="btn block" type="button" id="go">${current && current.id === 'refund' ? 'Continue with refund' : 'Continue'}</button>

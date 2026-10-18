@@ -134,10 +134,6 @@ function sourceLine(obj) {
     ? `<span class="chip chip-neutral">${icon('db', 'i-sm')} Cached SAP data${obj.cachedAt ? ' · ' + fmtDateTime(obj.cachedAt) : ''}</span>`
     : `<span class="chip chip-green">${icon('db', 'i-sm')} Live from S/4HANA sandbox</span>`;
 }
-function simBanner() {
-  if (CFG.sapWriteMode === 'live') return '';
-  return `<div class="banner banner-warn">${icon('info')}<div><strong>Simulation mode.</strong> Data is read from the SAP S/4HANA sandbox (live when reachable, otherwise the last saved snapshot). The sandbox is read-only, so write requests are built in the exact OData V4 format and saved instead of sent.</div></div>`;
-}
 function clearMaps() { MAPS.forEach(m => { try { m.remove(); } catch (e) {} }); MAPS = []; }
 function setApp(html) { clearMaps(); $('#app').innerHTML = html; window.scrollTo(0, 0); }
 function loadingView(label) { setApp(`<div class="loading"><span class="spinner"></span> ${esc(label)}</div>
@@ -190,7 +186,6 @@ async function viewMixDashboard() {
     ${stepper(MIX_STEPS, 0)}
     <div class="page-head"><div><h1 class="page-title">Anko Mix-Lock</h1>
       <p class="page-sub">Deferred mix allocation: total volume is committed at Gate 1; the colour and size split is locked later, once early sell-through is known.</p></div></div>
-    ${simBanner()}
     <div class="kpis">
       <div class="kpi"><div class="kpi-ico red">${icon('clock')}</div><div><div class="label">Lines awaiting mix lock</div><div class="value">${lines.length - locked.length}</div><div class="hint">of ${lines.length} Anko lines</div></div></div>
       <div class="kpi"><div class="kpi-ico">${icon('box')}</div><div><div class="label">Committed units</div><div class="value">${nz(committed)}</div><div class="hint">from SAP purchase orders</div></div></div>
@@ -199,7 +194,7 @@ async function viewMixDashboard() {
     </div>
     <div class="card">
       <div class="card-head"><h2 class="section-title">Anko lines</h2>${sourceLine({ cached: lines.some(l => l.cached), cachedAt: (lines.find(l => l.cached) || {}).cachedAt })}</div>
-      <div class="table-wrap"><table>
+      <div class="table-wrap"><table class="line-table">
         <thead><tr><th>Anko line</th><th>SAP PO</th><th>Supplier</th><th>PO date</th><th class="r">Committed qty</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table></div>
     </div>`);
@@ -337,7 +332,6 @@ async function viewConfirm(id) {
   setApp(`
     ${stepper(MIX_STEPS, 3)}
     <div class="page-head"><div><h1 class="page-title">Confirm mix lock · ${esc(line.name)}</h1><p class="page-sub">Check the final split. Locking writes one order line per variant to SAP purchase order ${esc(line.sap.PurchaseOrder)}.</p></div></div>
-    ${simBanner()}
     <div class="grid g-main">
       <div class="card"><h2 class="section-title">Final split</h2>
         <div class="table-wrap"><table><thead><tr><th>Colour</th><th>Size</th><th class="r">Units</th><th class="r">Share</th></tr></thead><tbody>
@@ -502,7 +496,7 @@ async function viewDeliveries() {
         <div class="toolbar"><div class="seg" id="delSeg">
           ${['all:All', 'problems:Needs action', 'delayed:Delayed', 'ontrack:On track', 'recovery:In recovery'].map(x => { const [k, l] = x.split(':'); return `<button data-f="${k}" class="${STATE.delFilter === k ? 'on' : ''}">${l}</button>`; }).join('')}
         </div><label class="search">${icon('search', 'i-sm')}<input id="delSearch" placeholder="Search product, PO, supplier" value="${esc(STATE.delSearch)}"></label></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Product</th><th>Supplier</th><th>Route</th><th>Stage</th><th>ETA at DC</th><th>Status</th><th></th></tr></thead><tbody id="delRows"></tbody></table></div>
+      <div class="table-wrap"><table class="delivery-table"><thead><tr><th>Product</th><th>Supplier</th><th>Route</th><th>Stage</th><th>ETA at DC</th><th>Status</th><th></th></tr></thead><tbody id="delRows"></tbody></table></div>
     </div>`);
   const renderRows = () => {
     const q = STATE.delSearch.toLowerCase();
@@ -713,7 +707,6 @@ async function viewCase(caseId) {
     <div class="page-head"><div><h1 class="page-title">Recovery ${esc(c.id)} · ${esc(d.product)}</h1>
       <p class="page-sub">${esc(c.problem.title)} → ${esc(c.action.title)}</p></div>
       <div class="btn-row">${statusChip(resolved ? 'Resolved' : 'Recovery in progress')}</div></div>
-    ${simBanner()}
     <div class="grid g-main">
       <div class="card"><div class="card-head"><h2 class="section-title">${icon('reset')} Recovery progress</h2><span class="muted small">Owner: ${esc(c.owner)}</span></div>
         <div class="case-steps">${steps}</div>
@@ -786,7 +779,7 @@ async function viewHistory() {
   setApp(`
     <div class="page-head"><div><h1 class="page-title">History</h1><p class="page-sub">Every mix lock and delivery recovery, with the exact SAP requests behind it.</p></div>
       <div class="seg" id="hSeg">${['all:All', 'mixlock:Mix-lock', 'recovery:Delivery recovery'].map(x => { const [k, l] = x.split(':'); return `<button data-f="${k}" class="${STATE.historyFilter === k ? 'on' : ''}">${l}</button>`; }).join('')}</div></div>
-    <div class="card"><div class="table-wrap"><table><thead><tr><th>Type</th><th>Item</th><th>SAP PO</th><th>Outcome</th><th>When</th><th>Mode</th><th></th></tr></thead><tbody id="hRows"></tbody></table></div></div>`);
+    <div class="card"><div class="table-wrap"><table class="history-table"><thead><tr><th>Type</th><th>Item</th><th>SAP PO</th><th>Outcome</th><th>When</th><th>Mode</th><th></th></tr></thead><tbody id="hRows"></tbody></table></div></div>`);
   const render = () => {
     const rows = writes.filter(w => STATE.historyFilter === 'all' || w.kind === STATE.historyFilter);
     $('#hRows').innerHTML = rows.length ? rows.map(w => {

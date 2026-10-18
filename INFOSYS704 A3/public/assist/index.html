@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#e10600" />
+  <meta name="theme-color" content="#e4002b" />
   <title>Kmart Delivery Assist</title>
   <link rel="stylesheet" href="/assist/styles.css" />
 </head>
@@ -11,12 +11,28 @@
   <div class="stage">
     <div class="phone" id="phone">
       <header class="top">
-        <div class="brand">Kmart</div>
-        <div class="product">Delivery Assist</div>
+        <div class="top-brand">
+          <a class="brand" href="#/" aria-label="Delivery Assist home"><img src="/assets/kmart-logo.png" alt="Kmart" width="104" height="32" /></a>
+          <div class="product"><strong>Delivery Assist</strong><span>Order tracking &amp; support</span></div>
+        </div>
+        <a class="btn secondary home-link" href="/"><span aria-hidden="true">←</span> Back to home</a>
       </header>
-      <main id="view" tabindex="-1">
-        <p class="loading">Loading your orders…</p>
-      </main>
+      <div class="assist-layout">
+        <aside class="journey-panel" aria-label="Your delivery journey">
+          <p class="eyebrow">HERE TO HELP</p>
+          <h2>Your delivery.<br>A clear next step.</h2>
+          <p class="journey-intro">Follow your order and find the right way forward, all in one place.</p>
+          <ol class="journey-list" id="journeyList"></ol>
+          <div class="journey-note">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" /></svg>
+            <div><strong>You're in control</strong><p>Review your options before confirming a refund or replacement.</p></div>
+          </div>
+        </aside>
+        <main id="view" tabindex="-1" aria-label="Delivery Assist">
+          <p class="loading" role="status">Loading your orders…</p>
+        </main>
+      </div>
+      <footer class="assist-footer"><span>Kmart · Delivery Assist</span><span>From order tracking to a clear resolution.</span></footer>
     </div>
   </div>
   <script src="/assist/app.js"></script>
