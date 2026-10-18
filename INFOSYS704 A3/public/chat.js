@@ -53,9 +53,9 @@
     find('kmChatSuggestions').querySelectorAll('button').forEach(button => { button.disabled = busy || !config; });
   }
   function showMode(mode) {
-    find('kmChatMode').textContent = mode === 'ai' ? 'AI assistant · OpenAI' : 'Guided help';
+    find('kmChatMode').textContent = mode === 'ai' ? 'AI assistant · Google Gemini' : 'Guided help';
     find('kmChatNotice').textContent = mode === 'ai'
-      ? 'AI can make mistakes. Messages and any order status you include are sent to OpenAI. Do not send personal or payment details.'
+      ? 'AI can make mistakes. Messages and any order status you include are sent to Google Gemini. Do not send personal or payment details.'
       : 'AI is not connected. Replies use local guided help. Do not send personal or payment details.';
   }
   async function readJson(response) {

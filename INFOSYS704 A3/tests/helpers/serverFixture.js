@@ -11,7 +11,7 @@ const dataDir = path.join(root, 'data');
 const publicDir = path.join(root, 'public');
 const files = ['app_state.json', 'sap_write_store.json', 'recovery_cases.json', 'customer_state.json', 'sap_cache.json'];
 
-function serverFixture({ mode = 'simulate', key = '', staffKey = 'INFOSYS_704', chatKey = '', chatModel = 'gpt-4.1-mini', initial = {}, fetchImpl } = {}) {
+function serverFixture({ mode = 'simulate', key = '', staffKey = 'INFOSYS_704', chatKey = '', chatModel = 'gemini-3.5-flash-lite', initial = {}, fetchImpl } = {}) {
   const saved = new Map();
   const writes = [], sapCalls = [], errors = [];
   const defaults = {
@@ -20,7 +20,7 @@ function serverFixture({ mode = 'simulate', key = '', staffKey = 'INFOSYS_704', 
     'sap_cache.json': JSON.parse(fs.readFileSync(path.join(dataDir, 'sap_cache.json'), 'utf8'))
   };
   for (const name of files) saved.set(path.join(dataDir, name), JSON.stringify(initial[name] ?? defaults[name]));
-  saved.set(path.join(root, '.env'), `SAP_WRITE_MODE=${mode}\nSAP_API_KEY=${key}\nSTAFF_ACCESS_KEY=${staffKey}\nOPENAI_API_KEY=${chatKey}\nOPENAI_MODEL=${chatModel}`);
+  saved.set(path.join(root, '.env'), `SAP_WRITE_MODE=${mode}\nSAP_API_KEY=${key}\nSTAFF_ACCESS_KEY=${staffKey}\nGEMINI_API_KEY=${chatKey}\nGEMINI_MODEL=${chatModel}`);
   const memoryFs = {
     readFileSync(file, encoding) {
       const resolved = path.resolve(file);

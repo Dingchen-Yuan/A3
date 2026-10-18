@@ -37,8 +37,8 @@ const { LINES } = require('./data/mockLines');
 const { SHIPMENTS, PLACES, LANES } = require('./data/deliveries');
 const customerAssist = require('./customerAssist');
 const websiteChat = require('./lib/websiteChat').createWebsiteChat({
-  apiKey: ENV.OPENAI_API_KEY || process.env.OPENAI_API_KEY || '',
-  model: ENV.OPENAI_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+  apiKey: ENV.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '',
+  model: ENV.GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
   getOrderContext: customerAssist.chatOrderContext,
   fetchImpl: (url, options) => fetch(url, options)
 });
