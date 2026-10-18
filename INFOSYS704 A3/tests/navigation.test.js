@@ -22,6 +22,7 @@ async function run() {
       assert.match(html, /aria-controls="sidebar" aria-expanded="false"/, route);
       assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'management', 'mixlock', 'deliveries', 'history'], route);
       assert.ok(html.indexOf('/site-navigation.js') < html.indexOf('/assist/app.js'), route);
+      assert.match(html, /href="\/chat.css"/); assert.match(html, /src="\/chat.js"/);
     }
     for (const route of ['/supply-hub', '/supply-hub/', '/supply-hub/index.html']) {
       const response = await fetch(base + route);
@@ -31,10 +32,12 @@ async function run() {
       assert.match(html, /href="\/" class="customer-link"/, route);
       assert.match(html, /class="sidebar app-sidebar" id="sidebar"/, route);
       assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'management', 'mixlock', 'deliveries', 'history'], route);
+      assert.match(html, /href="\/chat.css"/); assert.match(html, /src="\/chat.js"/);
     }
     const staffHome = await fetch(base + '/recovery-management').then(response => response.text());
     assert.match(staffHome, /Recovery Management · Kmart/);
-    for (const route of ['/assist/styles.css', '/assist/app.js', '/styles.css', '/app.js', '/site-navigation.css', '/site-navigation.js', '/staff/app.js', '/staff/styles.css']) {
+    assert.match(staffHome, /href="\/chat.css"/); assert.match(staffHome, /src="\/chat.js"/);
+    for (const route of ['/assist/styles.css', '/assist/app.js', '/styles.css', '/app.js', '/site-navigation.css', '/site-navigation.js', '/staff/app.js', '/staff/styles.css', '/chat.css', '/chat.js']) {
       const response = await fetch(base + route);
       assert.equal(response.status, 200, route);
       assert.doesNotMatch(await response.text(), /<!DOCTYPE html>/, route);

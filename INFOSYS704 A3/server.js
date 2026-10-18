@@ -36,6 +36,12 @@ const SAP_TIMEOUT_MS = 8000;
 const { LINES } = require('./data/mockLines');
 const { SHIPMENTS, PLACES, LANES } = require('./data/deliveries');
 const customerAssist = require('./customerAssist');
+const websiteChat = require('./lib/websiteChat').createWebsiteChat({
+  apiKey: ENV.OPENAI_API_KEY || process.env.OPENAI_API_KEY || '',
+  model: ENV.OPENAI_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+  getOrderContext: customerAssist.chatOrderContext,
+  fetchImpl: (url, options) => fetch(url, options)
+});
 
 const DATA_DIR = path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -543,6 +549,13 @@ async function handleHttpRequest(req, res) {
     const p = u.pathname;
     const parts = p.split('/').filter(Boolean).map(decodeURIComponent);
 
+    if (p === '/api/chat/config' && req.method === 'GET') return sendJson(res, 200, websiteChat.config());
+    if (p === '/api/chat' && req.method === 'POST') {
+      if (!staffAccess.sameOrigin(req) || req.headers['sec-fetch-site'] === 'cross-site') return sendJson(res, 403, { error: 'Open chat from this website.' });
+      if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) return sendJson(res, 415, { error: 'Chat messages must use JSON.' });
+      return sendJson(res, 200, await websiteChat.reply(await jsonBody(req), req.socket.remoteAddress));
+    }
+
     if (p === '/api/config') {
       return sendJson(res, 200, { sapWriteMode: SAP_MODE === 'live' ? 'live' : 'simulate', sapBase: SAP_BASE, hasKey: !!SAP_KEY, sapStatus: lastSapStatus });
     }
@@ -689,7 +702,8 @@ async function handleHttpRequest(req, res) {
 // buyer request restore old data after the customer/staff queues were cleared.
 let mutationQueue = Promise.resolve();
 const server = http.createServer((req, res) => {
-  if (req.method === 'POST') {
+  // Chat is read-only: provider latency must not hold up order/staff writes.
+  if (req.method === 'POST' && req.url.split('?')[0] !== '/api/chat') {
     const result = mutationQueue.then(() => handleHttpRequest(req, res));
     mutationQueue = result.catch(() => {});
   } else {

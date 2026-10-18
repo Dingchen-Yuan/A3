@@ -245,6 +245,29 @@ function listOrders() {
     .sort((a, b) => Number(b.tone === 'problem') - Number(a.tone === 'problem'));
 }
 
+// Explicitly selected, saved order only: no SAP lookup, cache write, customer
+// identity/address, staff notes, external references or raw request bodies.
+function chatOrderContext(reference) {
+  const order = knownOrder(reference);
+  if (!order) return null;
+  const view = withProblem(order);
+  const active = view.recoveryCase;
+  const scope = active?.affectedItems || view.affectedItems;
+  return {
+    id: view.id, source: view.source === 'sap' ? 'saved_sap_snapshot' : 'sample',
+    summary: String(view.summary || '').slice(0, 200), promise: view.promise,
+    currency: view.currency, total: view.total, problemCode: view.problem?.code || null,
+    affectedItems: scope.slice(0, 20).map(item => ({ name: String(item.name).slice(0, 120), qty: item.qty, orderedQty: item.orderedQty, amount: item.amount })),
+    scopeTruncated: scope.length > 20,
+    options: view.options.map(option => ({ id: option.id, amount: option.amount })),
+    recovery: active ? {
+      stage: active.operations.stage, status: active.status, latestStep: active.steps[active.stepIndex],
+      outcome: active.outcome, amount: active.amount, readyForAcknowledgement: active.readyForCompletion,
+      updatedAt: active.updatedAt
+    } : null
+  };
+}
+
 function salesOrderRows(payload) {
   const root = payload && (payload.d || payload);
   if (!root) return [];
@@ -620,4 +643,4 @@ async function tryHandle(req, res, ctx) {
   }
 }
 
-module.exports = { tryHandle, salesRoot, resetDemo };
+module.exports = { tryHandle, salesRoot, resetDemo, chatOrderContext };

@@ -174,6 +174,28 @@ For an order without an existing case, select **An item is missing**, choose the
 
 Refund/replacement confirmations are prototype outcomes, not actual payments or replacement dispatches. SAP amounts are the supplied net line amounts; this is not a tax, shipping or payment-settlement integration. Carrier-driven recovery updates remain a separate improvement.
 
+### Website chat — Kmart Assist
+
+Click **Need help?** at the bottom-right of Delivery Assist, Recovery Management or Supply Hub. The responsive chat box supports suggested questions, conversation history, optional saved-order context, safe links to the relevant screen, a new-chat button and Escape to close. It is read-only: it cannot submit recoveries, make staff decisions, send payments, book deliveries or change SAP data.
+
+**Without an AI key**, it works as explicitly labelled **Guided help**, using local delivery/recovery guidance. This is not a generative AI response. For example, include `KM185164` and ask about its missing item to see the saved **1 of 2 bottles / $8** scope.
+
+**To enable real AI replies**, add your own OpenAI API credentials to the git-ignored `INFOSYS704 A3/.env` (keep any existing SAP/staff settings), then restart the server:
+
+```dotenv
+OPENAI_API_KEY=your_private_api_key
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+The browser then displays **AI assistant · OpenAI**. The Node server calls the OpenAI Responses API; the key is never returned to browser code. API usage requires your own API access/billing. Provider failures show an error and retain the draft for retry, rather than displaying a scripted answer as AI.
+
+- Order context is **opt-in** through **Include an order**, or **Use [current order]** while viewing an order. Only that saved order's status, product scope and amounts are included—no names, addresses, staff notes, finance/booking references, raw SAP requests or bulk catalogue. Unknown references do not trigger SAP lookups. Changing the included order starts a fresh conversation.
+- With AI enabled, messages and the selected minimal context are sent to OpenAI. User-written messages are not automatically redacted: do not enter personal/payment details or credentials. Responses API requests use `store: false`; OpenAI's own data-handling policies still apply.
+- Chats are held in page memory, not saved by this app. **New chat**, a page reload/workspace change or **Reset demo** clears them. Closing/reopening the panel on the same page retains the current conversation.
+- Requests have input/history limits, a 15-second provider timeout, 15 messages per IP/minute, at most three concurrent AI requests and a 100-AI-request/hour process limit. Waiting for AI does not block order/staff updates.
+- `GET /api/chat/config` reports the mode without credentials. `POST /api/chat` accepts only alternating user/assistant messages and an optional `orderRef`; it has no transaction/tool-calling capabilities. Replies are rendered as plain text, not executable HTML.
+- Existing prototype customer/staff access rules are unchanged. An order reference is not identity verification. Keep this local; production needs authenticated customers/staff, ownership checks and deployment-level abuse/cost controls before exposing paid AI or real customer data.
+
 ### Tests
 
 ```bash
@@ -187,8 +209,9 @@ node tests/recoveryManagement.test.js
 node tests/staffAccessHint.test.js
 node tests/demoReset.test.js
 node tests/navigation.test.js
+node tests/websiteChat.test.js
 ```
 
-Tests use in-memory state and mocked SAP responses. They cover staff authentication, decision ordering, references/dates, private-note filtering, stale versions, rejection without a financial write, frozen amounts, SAP lookup, partial quantities and read-only customer refresh. The all-module reset test checks explicit confirmation, live-data guards, retained snapshots/sign-ins and earlier in-flight writes. HTTP tests use temporary local ports. None of these tests resets your saved case history or sends real SAP writes.
+Tests use in-memory state and mocked SAP/AI responses. They cover staff authentication, decision ordering, references/dates, private-note filtering, stale versions, rejection without a financial write, frozen amounts, SAP lookup, partial quantities and read-only customer refresh. Chat tests check minimal context, read-only state, honest mode labels, errors, rate limits and non-blocking model calls. The all-module reset test checks explicit confirmation, live-data guards, retained snapshots/sign-ins and earlier in-flight writes. HTTP tests use temporary local ports. None of these tests resets your saved case history, sends real SAP writes or spends AI credits.
 
 Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.
