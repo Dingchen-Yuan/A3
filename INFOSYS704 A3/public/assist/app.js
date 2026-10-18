@@ -26,6 +26,49 @@ function orderPath(id, screen) {
   return '#/order/' + encodeURIComponent(id) + (screen ? '/' + screen : '');
 }
 
+// Classroom demo only: one shared code is used for all sample orders.
+function requestOrderCode(destination) {
+  const dialog = document.createElement('dialog');
+  dialog.className = 'order-code-dialog';
+  dialog.setAttribute('aria-labelledby', 'orderCodeTitle');
+  dialog.innerHTML = `
+    <form id="orderCodeForm">
+      <h2 id="orderCodeTitle">Enter your order code</h2>
+      <p class="order-code-intro">Enter the code provided for your order to view its tracking details.</p>
+      <label class="field-label" for="orderCodeInput">Order code</label>
+      <input id="orderCodeInput" type="text" autocomplete="off" spellcheck="false" required placeholder="Enter your order code" />
+      <button class="order-code-hint-button" id="orderCodeHintButton" type="button" aria-expanded="false" aria-controls="orderCodeHint">Demo order code</button>
+      <p class="order-code-hint" id="orderCodeHint" hidden>Demo code: <strong>INFOSYS_704</strong></p>
+      <p class="order-code-error" id="orderCodeError" role="alert" hidden>Incorrect order code. Please try again.</p>
+      <div class="order-code-actions">
+        <button class="btn secondary" type="button" id="orderCodeCancel">Cancel</button>
+        <button class="btn" type="submit">View order</button>
+      </div>
+    </form>`;
+  document.body.appendChild(dialog);
+  dialog.addEventListener('close', () => dialog.remove(), { once: true });
+  dialog.querySelector('#orderCodeCancel').addEventListener('click', () => dialog.close());
+  dialog.querySelector('#orderCodeHintButton').addEventListener('click', event => {
+    const hint = dialog.querySelector('#orderCodeHint');
+    const showing = hint.hidden;
+    hint.hidden = !showing;
+    event.currentTarget.textContent = showing ? 'Hide demo order code' : 'Demo order code';
+    event.currentTarget.setAttribute('aria-expanded', String(showing));
+  });
+  dialog.querySelector('#orderCodeForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const code = dialog.querySelector('#orderCodeInput').value.trim();
+    if (code !== 'INFOSYS_704') {
+      dialog.querySelector('#orderCodeError').hidden = false;
+      return;
+    }
+    dialog.close();
+    location.hash = destination;
+  });
+  dialog.showModal();
+  dialog.querySelector('#orderCodeInput').focus();
+}
+
 const ICONS = {
   box: '<path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>',
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>',
@@ -148,13 +191,19 @@ async function showHome(message) {
     ${error ? `<p class="error" role="alert">${esc(error)}</p>` : ''}
     <div class="section-heading"><h2>Recent orders</h2><span>${orders.length} orders</span></div>
     <div class="cards order-grid">${cards || '<div class="empty-state">No orders are available right now. Try an order number above.</div>'}</div>`);
+  document.querySelectorAll('.order-grid .card-link').forEach(link => {
+    link.addEventListener('click', event => {
+      event.preventDefault();
+      requestOrderCode(link.getAttribute('href'));
+    });
+  });
   document.querySelector('#find').addEventListener('submit', async event => {
     event.preventDefault();
     const q = document.querySelector('#q').value.trim();
     if (!q) return;
     try {
       const order = await api('/api/assist/orders/' + encodeURIComponent(q));
-      location.hash = '#/order/' + encodeURIComponent(order.id);
+      requestOrderCode(orderPath(order.id));
     } catch (err) {
       showHome(err.message);
     }

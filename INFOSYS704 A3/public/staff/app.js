@@ -19,7 +19,7 @@ function login(message = '') {
   view.innerHTML = `<p class="kicker">Staff access</p><h1>Recovery Management</h1><p class="lead">Review customer requests and record operational decisions with an audit trail.</p>
     <form class="staff-form staff-login" id="login"><label>Your staff name<input name="name" autocomplete="username" required minlength="2" maxlength="80"></label>
     <label>Staff access code<input name="accessCode" type="password" autocomplete="current-password" required></label>
-    ${accessHintAvailable ? '<button class="btn secondary staff-hint-toggle" id="staffHintToggle" type="button" aria-controls="staffAccessHint" aria-expanded="false">Staff access code hint</button><div class="staff-code-hint" id="staffAccessHint" role="status" aria-live="polite" hidden><code id="revealedCode"></code><p class="field-hint">This is a public classroom code, not secure staff protection.</p></div>' : ''}
+    ${accessHintAvailable ? '<button class="btn secondary staff-hint-toggle" id="staffHintToggle" type="button" aria-controls="staffAccessHint" aria-expanded="false">Demo staff access code</button><div class="staff-code-hint" id="staffAccessHint" role="status" aria-live="polite" hidden><code id="revealedCode"></code><p class="field-hint">This is a public classroom code, not secure staff protection.</p></div>' : ''}
     <button class="btn" id="staffSignIn" type="submit">Sign in</button>
     <p class="field-hint">Shared-code prototype access, not Kmart SSO.${accessHintAvailable ? ' The hint is provided for local classroom use only.' : ' Use the private code configured by the project owner.'}</p>
     <p class="error" id="loginError" role="alert" ${message ? '' : 'hidden'}>${esc(message)}</p></form>`;
@@ -33,7 +33,7 @@ function login(message = '') {
   document.querySelector('#staffHintToggle')?.addEventListener('click', async event => {
     const button = event.currentTarget;
     const hint = document.querySelector('#staffAccessHint');
-    if (!hint.hidden) { hint.hidden = true; button.setAttribute('aria-expanded', 'false'); button.textContent = 'Staff access code hint'; return; }
+    if (!hint.hidden) { hint.hidden = true; button.setAttribute('aria-expanded', 'false'); button.textContent = 'Demo staff access code'; return; }
     const current = token;
     button.disabled = true;
     try {
