@@ -360,7 +360,7 @@ def build():
         table.columns[i].width = Inches(2.55)
     data = [
         ["GROUP MEMBER", "Dingchen Yuan", "Taariq Mohamed", "Huy Nguyen", "Total"],
-        ["UPI", "", "", "", ""],
+        ["UPI", "dyua155", "tmoh716", "hugn456", ""],
         ["% Contribution", "34%", "33%", "33%", "100%"],
         ["Comments", "Equal split", "Equal split", "Equal split", "Rounding"],
     ]
@@ -381,9 +381,9 @@ def build():
             fill.fore_color.rgb = RED if r == 0 else (PAPER if r % 2 == 0 else WHITE)
 
     add_text(s, Inches(0.4), Inches(3.85), Inches(12.5), Inches(1.15),
-             "Criteria explanation:\n1. UPI: Enter each team member’s UPI before upload. The cells above are intentionally blank.\n2. % Contribution: Enter a percentage for each member. The figures must add up to 100%.\n3. Comments (optional): Add a comment where the percentage needs context.",
+             "Criteria explanation:\n1. UPI: Enter each team member’s UPI.\n2. % Contribution: Enter a percentage for each member. The figures must add up to 100%.\n3. Comments (optional): Add a comment where the percentage needs context.",
              13, INK)
-    notes(s, "Do not spend speaking time here unless asked. This slide has to be last in the file. Fill the three UPIs before Canvas upload. Confirm the 34/33/33 split with the whole group. If the split changes, change the percentages so they still total 100.")
+    notes(s, "Do not spend speaking time here unless asked. This slide has to be last in the file. UPIs are filled in. Confirm the 34/33/33 split with the whole group. If the split changes, change the percentages so they still total 100.")
 
     out = "pitch/Kmart-Delivery-Assist-Lab12.pptx"
     prs.save(out)
