@@ -3,6 +3,7 @@ const { findOrder } = require('../data/customerOrders');
 const amounts = require('../lib/customerAmounts');
 const selections = require('../lib/customerSelections');
 const recovery = require('../lib/customerRecovery');
+const { readyCase } = require('./helpers/workflowFixture');
 
 const order = findOrder('KM185002');
 assert.equal(recovery.affectedTotal(order), 18); // Original carrier-flagged demo.
@@ -24,6 +25,7 @@ assert.equal(replacement.affectedValue, 12);
 assert.equal(replacement.selectionIsPartial, true);
 assert.equal(replacement.amount, 0);
 assert.deepEqual(replacement.affectedItems.map(item => [item.itemId, item.qty]), [['line-2', 1]]);
+readyCase(replacement);
 assert.match(recovery.outcomeCopy(replacement, order).lead, /Cushion Cover/);
 assert.doesNotMatch(recovery.outcomeCopy(replacement, order).lead, /damaged|discard/);
 assert.match(recovery.outcomeCopy(replacement, order).lead, /Other items and units stay unchanged/);
@@ -70,8 +72,8 @@ assert.equal(freeOption.amount, 0);
 assert.match(freeOption.detail, /rest of the order stays/);
 assert.doesNotMatch(freeOption.detail, /will not be delivered/);
 const freeCase = recovery.createCase({ order: free, problem: freeProblem, option: freeOption });
-recovery.advance(freeCase); recovery.advance(freeCase);
+readyCase(freeCase);
 recovery.complete(freeCase, free, freeOption);
-assert.match(freeCase.requests.at(-1).body.settlement, /refund confirmed/);
+assert.match(freeCase.requests.at(-1).body.settlement, /acknowledged a staff-recorded refund/);
 
 console.log('Item selections passed: partial quantities, exact proportions, duplicate SKUs, validation and frozen scope.');

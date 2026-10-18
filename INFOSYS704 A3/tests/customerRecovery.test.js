@@ -2,6 +2,7 @@ const assert = require('assert');
 const { findOrder } = require('../data/customerOrders');
 const recovery = require('../lib/customerRecovery');
 const { SALES_ORDER_PATH } = require('../lib/salesOrderQuery');
+const { readyCase } = require('./helpers/workflowFixture');
 
 assert.match(SALES_ORDER_PATH, /API_SALES_ORDER_SRV/);
 assert.match(SALES_ORDER_PATH, /\$top=5/);
@@ -12,7 +13,7 @@ const delayed = findOrder('KM184866');
 const delayedOptions = recovery.optionsFor(delayed, delayed.problem);
 assert.deepStrictEqual(delayedOptions.map(option => option.id), ['replace', 'refund']);
 assert.strictEqual(delayedOptions.find(option => option.id === 'refund').amount, 16);
-assert.match(delayedOptions.find(option => option.id === 'refund').detail, /will not be delivered/);
+assert.match(delayedOptions.find(option => option.id === 'refund').detail, /Staff will review/);
 assert.doesNotMatch(delayedOptions.find(option => option.id === 'refund').detail, /rest of the order/);
 
 const damaged = findOrder('KM185002');
@@ -52,35 +53,31 @@ const partial = recovery.outcomeCopy(
   recovery.createCase({ order: damaged, problem: damaged.problem, option: damagedOptions[1] }),
   damaged
 );
-assert.match(partial.lead, /rest of the order/);
+assert.match(recovery.optionsFor(damaged, damaged.problem)[1].detail, /rest of the order/);
+assert.match(partial.heading, /Awaiting staff/);
 const whole = recovery.outcomeCopy(
   recovery.createCase({ order: delayed, problem: delayed.problem, option: delayedOptions[1] }),
   delayed
 );
-assert.match(whole.lead, /will not be delivered/);
+assert.match(whole.lead, /responsible team/);
 assert.doesNotMatch(whole.lead, /rest of the order/);
 
-recovery.advance(created);
-assert.strictEqual(created.status, 'open');
-recovery.advance(created);
+readyCase(created);
 assert.strictEqual(created.status, 'ready');
 assert.strictEqual(recovery.canComplete(created), true);
 const readySnapshot = JSON.stringify(created);
-recovery.advance(created);
 assert.strictEqual(created.stepIndex, created.steps.length - 1);
 assert.strictEqual(JSON.stringify(created), readySnapshot);
 
 const refund = recovery.optionById(damaged, damaged.problem, 'refund');
 const refundCase = recovery.createCase({ order: damaged, problem: damaged.problem, option: refund });
-recovery.advance(refundCase);
-recovery.advance(refundCase);
+readyCase(refundCase);
 recovery.complete(refundCase, damaged, refund);
 assert.strictEqual(refundCase.status, 'closed');
 assert.strictEqual(refundCase.requests.at(-1).body.ServiceRequestStatus, 'Completed');
 assert.match(refundCase.requests.at(-1).body.settlement, /cannot create a refund/);
 const completedSnapshot = JSON.stringify(refundCase);
 recovery.complete(refundCase, damaged, refund);
-recovery.advance(refundCase);
 assert.strictEqual(JSON.stringify(refundCase), completedSnapshot);
 assert.strictEqual(refundCase.requests.length, 2);
 

@@ -1,7 +1,7 @@
 {
   "locked": {
     "L001": {
-      "writeId": "wr_1792312565627_vwk38q",
+      "writeId": "wr_1792327862118_vhl4yy",
       "finalSplit": [
         {
           "colour": "Black",
@@ -64,77 +64,9 @@
           "qty": 72
         }
       ],
-      "at": "2026-10-18T08:36:05.627Z",
+      "at": "2026-10-18T12:51:02.118Z",
       "riskBefore": 2218,
       "riskAfter": 605
-    },
-    "L002": {
-      "writeId": "wr_1792322475457_fyr0km",
-      "finalSplit": [
-        {
-          "colour": "Black",
-          "size": "100x150cm",
-          "qty": 132
-        },
-        {
-          "colour": "Black",
-          "size": "130x170cm",
-          "qty": 96
-        },
-        {
-          "colour": "Black",
-          "size": "150x200cm",
-          "qty": 72
-        },
-        {
-          "colour": "Sage",
-          "size": "100x150cm",
-          "qty": 168
-        },
-        {
-          "colour": "Sage",
-          "size": "130x170cm",
-          "qty": 204
-        },
-        {
-          "colour": "Sage",
-          "size": "150x200cm",
-          "qty": 120
-        },
-        {
-          "colour": "Cream",
-          "size": "100x150cm",
-          "qty": 84
-        },
-        {
-          "colour": "Cream",
-          "size": "130x170cm",
-          "qty": 84
-        },
-        {
-          "colour": "Cream",
-          "size": "150x200cm",
-          "qty": 60
-        },
-        {
-          "colour": "Terracotta",
-          "size": "100x150cm",
-          "qty": 60
-        },
-        {
-          "colour": "Terracotta",
-          "size": "130x170cm",
-          "qty": 60
-        },
-        {
-          "colour": "Terracotta",
-          "size": "150x200cm",
-          "qty": 60
-        }
-      ],
-      "at": "2026-10-18T11:21:15.457Z",
-      "riskBefore": 962,
-      "riskAfter": 151
     }
   }
 }

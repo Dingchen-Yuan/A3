@@ -7,6 +7,7 @@ const path = require('path');
 const recovery = require('./lib/customerRecovery');
 const amounts = require('./lib/customerAmounts');
 const selections = require('./lib/customerSelections');
+const workflow = require('./lib/recoveryWorkflow');
 const { allOrders, findOrder, REPORTABLE } = require('./data/customerOrders');
 const { SALES_ORDER_PATH } = require('./lib/salesOrderQuery');
 
@@ -84,10 +85,6 @@ function applyProblem(order, state) {
   return problem ? Object.assign({}, order, { problem, headline: problem.title, summary: problem.title }) : order;
 }
 
-function allowsDemoProgress(recoveryCase, mode) {
-  return mode === 'simulate' && recoveryCase.requests && recoveryCase.requests[0] && recoveryCase.requests[0].mode === 'simulate';
-}
-
 function withProblem(order, mode) {
   const state = readState();
   order = applyProblem(order, state);
@@ -124,11 +121,8 @@ function withProblem(order, mode) {
     summary: order.problem ? order.problem.title : order.summary,
     total: recovery.orderTotal(order),
     options: recovery.optionsFor(order, order.problem),
-    recoveryCase: active ? Object.assign({}, active, {
+    recoveryCase: active ? Object.assign(workflow.customerView(active), {
       outcomeCopy: recovery.outcomeCopy(active, order),
-      isSimulated: Boolean(active.requests && active.requests[0] && active.requests[0].mode === 'simulate'),
-      demoControlsAvailable: Boolean(allowsDemoProgress(active, mode) && active.status !== 'closed'),
-      demoAdvanceAllowed: Boolean(allowsDemoProgress(active, mode) && active.status === 'open' && active.stepIndex < active.steps.length - 1),
       readyForCompletion: recovery.canComplete(active)
     }) : null,
     // A response timestamp, never persisted into the case or its history.
@@ -190,11 +184,26 @@ async function resolveOrder(query, root, key) {
 
 function caseLabel(recoveryCase) {
   if (!recoveryCase) return null;
+  if (workflow.stage(recoveryCase) === 'rejected') return recoveryCase.status === 'closed' ? 'Decision acknowledged' : 'Request declined';
   if (recoveryCase.status !== 'closed') return 'Recovery in progress';
-  if (recoveryCase.outcome === 'refund') return 'Refund confirmed';
-  if (recoveryCase.outcome === 'replacement') return 'Replacement confirmed';
-  if (recoveryCase.outcome === 'collection') return 'Collection confirmed';
-  return 'Redelivery confirmed';
+  return recoveryCase.operations ? 'Resolution update acknowledged' : 'Previous resolution recorded';
+}
+
+function findCase(state, id) {
+  const matches = Object.entries(state.cases).filter(([, entry]) => entry.id === id);
+  if (matches.length > 1) throw new workflow.WorkflowError('This historical case reference is ambiguous. Contact the project owner.', 409);
+  return matches.length ? { orderId: matches[0][0], recoveryCase: matches[0][1] } : null;
+}
+
+function staffCase(recoveryCase, order) {
+  return Object.assign(workflow.customerView(recoveryCase), {
+    customer: order ? order.customer : 'Order unavailable',
+    customerReference: order ? order.customerReference || order.id : recoveryCase.orderId,
+    problemTitle: order && order.problem ? order.problem.title : recoveryCase.problemCode,
+    version: recoveryCase.operations ? recoveryCase.operations.version : 0,
+    allowedActions: order ? workflow.allowedActions(recoveryCase) : [],
+    audit: recoveryCase.operations ? recoveryCase.operations.audit : []
+  });
 }
 
 function listOrders() {
@@ -343,6 +352,48 @@ async function handleRequest(req, res, ctx) {
   const mode = ctx.sapMode || 'simulate';
   const sendJson = ctx.sendJson;
 
+  if (pathname.startsWith('/api/assist/staff')) {
+    const access = ctx.staffAccess;
+    if (!access) { sendJson(res, 503, { error: 'Staff access is not configured on this server.' }); return true; }
+    if (pathname === '/api/assist/staff/session' && req.method === 'GET') {
+      const actor = access.session(req);
+      sendJson(res, 200, { authenticated: Boolean(actor), actor, hintAvailable: access.hintAvailable }); return true;
+    }
+    if (pathname === '/api/assist/staff/access-hint' && req.method === 'GET') {
+      if (!access.hintAvailable) { sendJson(res, 404, { error: 'A public hint is not available for a privately configured staff code.' }); return true; }
+      sendJson(res, 200, { accessCode: access.publicHint }); return true;
+    }
+    if (pathname === '/api/assist/staff/login' && req.method === 'POST') {
+      const result = access.login(req, res, await ctx.jsonBody(req));
+      sendJson(res, result.status, result.error ? { error: result.error } : { authenticated: true, actor: result.actor }); return true;
+    }
+    const actor = access.session(req);
+    if (!actor) { sendJson(res, 401, { error: 'Staff sign-in is required.' }); return true; }
+    if (req.method === 'POST' && !access.sameOrigin(req)) { sendJson(res, 403, { error: 'Record staff actions from this application.' }); return true; }
+    if (pathname === '/api/assist/staff/logout' && req.method === 'POST') {
+      access.logout(req, res); sendJson(res, 200, { ok: true }); return true;
+    }
+    const state = readState();
+    if (pathname === '/api/assist/staff/cases' && req.method === 'GET') {
+      sendJson(res, 200, { cases: Object.values(state.cases).map(entry => staffCase(entry, knownOrder(entry.orderId, state))) }); return true;
+    }
+    const match = pathname.match(/^\/api\/assist\/staff\/cases\/([^/]+)(?:\/(actions))?$/);
+    if (match) {
+      const found = findCase(state, decodeURIComponent(match[1]));
+      if (!found) { sendJson(res, 404, { error: 'Recovery case not found.' }); return true; }
+      const order = knownOrder(found.orderId, state);
+      if (!match[2] && req.method === 'GET') { sendJson(res, 200, { case: staffCase(found.recoveryCase, order) }); return true; }
+      if (match[2] && req.method === 'POST') {
+        if (!order) throw new workflow.WorkflowError('The order snapshot is unavailable. No action has been recorded.', 409);
+        const body = await ctx.jsonBody(req);
+        workflow.apply(found.recoveryCase, body, actor);
+        writeState(state);
+        sendJson(res, 200, { case: staffCase(found.recoveryCase, order) }); return true;
+      }
+    }
+    sendJson(res, 404, { error: 'Unknown staff route' }); return true;
+  }
+
   if (pathname === '/api/assist/config' && req.method === 'GET') {
     sendJson(res, 200, {
       sapWriteMode: mode,
@@ -365,6 +416,7 @@ async function handleRequest(req, res, ctx) {
 
   if (pathname === '/api/assist/reset' && req.method === 'POST') {
     const state = readState();
+    if (Object.values(state.cases).some(entry => entry.operations)) throw new workflow.WorkflowError('Staff-managed case history cannot be cleared from the customer interface.', 409);
     state.cases = {}; state.problems = {};
     writeState(state);
     sendJson(res, 200, { ok: true });
@@ -417,6 +469,7 @@ async function handleRequest(req, res, ctx) {
 
     if (action === 'reset' && req.method === 'POST') {
       const state = readState();
+      if (state.cases[order.id] && state.cases[order.id].operations) throw new workflow.WorkflowError('This staff-managed request cannot be reset. Its decision and audit history are retained.', 409);
       delete state.cases[order.id];
       delete state.problems[order.id];
       writeState(state);
@@ -449,7 +502,9 @@ async function handleRequest(req, res, ctx) {
         sendJson(res, 200, withProblem(current, mode));
         return true;
       }
-      const recoveryCase = recovery.createCase({ order: current, problem: current.problem, option });
+      let recoveryCase;
+      do { recoveryCase = recovery.createCase({ order: current, problem: current.problem, option }); }
+      while (Object.values(state.cases).some(entry => entry.id === recoveryCase.id));
       const posted = await sapPost(root, key, mode, '/sap/opu/odata/sap/OP_API_SERVICE_REQUEST_SRV_0001/A_ServiceRequest', recoveryCase.requests[0].body);
       if (!posted.ok) {
         sendJson(res, 502, { error: 'We could not send your recovery request to SAP. Nothing has been confirmed. Please try again.', sapStatus: posted.status || null });
@@ -472,11 +527,12 @@ async function handleRequest(req, res, ctx) {
   if (caseMatch && (readCase || (caseMatch[2] && req.method === 'POST'))) {
     const caseId = decodeURIComponent(caseMatch[1]);
     const state = readState();
-    const orderId = Object.keys(state.cases).find(keyName => state.cases[keyName].id === caseId);
-    if (!orderId) {
+    const found = findCase(state, caseId);
+    if (!found) {
       sendJson(res, 404, { error: 'That recovery could not be found.' });
       return true;
     }
+    const orderId = found.orderId;
     // Status refresh is strictly read-only: no SAP lookup/cache population and
     // no change to progress, timestamps, selection or financial requests.
     const order = readCase ? knownOrder(orderId, state) : await resolveOrder(orderId, root, key);
@@ -485,6 +541,9 @@ async function handleRequest(req, res, ctx) {
       return true;
     }
     const recoveryCase = state.cases[orderId];
+    if (caseMatch[2] === 'advance') {
+      sendJson(res, 410, { error: 'Customer and demo advancement is no longer available. Staff must review the request and record the operational outcome in Recovery Management.' }); return true;
+    }
     if (readCase) {
       sendJson(res, 200, withProblem(order, mode));
       return true;
@@ -503,33 +562,25 @@ async function handleRequest(req, res, ctx) {
       sendJson(res, 400, { error: 'Choose a recovery option.' });
       return true;
     }
-    if (caseMatch[2] === 'advance') {
-      if (!allowsDemoProgress(recoveryCase, mode)) {
-        sendJson(res, 403, { error: 'Demo updates are only available for simulated recoveries in simulation mode. Live recovery progress cannot be advanced manually.' });
-        return true;
-      }
-      const previousStep = recoveryCase.stepIndex;
-      recovery.advance(recoveryCase);
-      if (recoveryCase.stepIndex === previousStep) {
-        sendJson(res, 200, withProblem(order, mode));
-        return true;
-      }
-    } else {
+    {
       if (!recovery.canComplete(recoveryCase)) {
         sendJson(res, 409, { error: 'This recovery is not ready to complete. Wait for a recovery update first.' });
         return true;
       }
       recovery.complete(recoveryCase, order, option);
       const last = recoveryCase.requests.at(-1);
-      const posted = await sapPost(root, key, mode, '/sap/opu/odata/sap/OP_API_SERVICE_REQUEST_SRV_0001/A_ServiceRequest', last.body);
+      const posted = workflow.stage(recoveryCase) === 'rejected' ? { ok: true, mode: 'application' }
+        : await sapPost(root, key, mode, '/sap/opu/odata/sap/OP_API_SERVICE_REQUEST_SRV_0001/A_ServiceRequest', last.body);
       if (!posted.ok) {
         // The edited case exists only in this local copy. Do not save it as
         // closed unless SAP confirms the write; the persisted case stays ready.
         sendJson(res, 502, { error: 'We could not confirm this recovery with SAP. Your case is still ready to complete. Please try again.', sapStatus: posted.status || null });
         return true;
       }
-      last.mode = posted.mode;
-      if (posted.status) last.status = posted.status;
+      if (workflow.stage(recoveryCase) !== 'rejected') {
+        last.mode = posted.mode;
+        if (posted.status) last.status = posted.status;
+      }
     }
     writeState(state);
     sendJson(res, 200, withProblem(knownOrder(order.id), mode));
@@ -548,7 +599,7 @@ async function tryHandle(req, res, ctx) {
     if (req.method === 'POST' || cachesOrder) return await serializeMutation(() => handleRequest(req, res, ctx));
     return await handleRequest(req, res, ctx);
   } catch (err) {
-    if (!(err instanceof OrderLookupError) && !(err instanceof selections.SelectionError)) throw err;
+    if (!(err instanceof OrderLookupError) && !(err instanceof selections.SelectionError) && !(err instanceof workflow.WorkflowError)) throw err;
     ctx.sendJson(res, err.status, { error: err.message });
     return true;
   }

@@ -20,7 +20,7 @@ async function run() {
       assert.match(html, /class="btn secondary home-link" href="\/"/, route);
       assert.match(html, /class="sidebar app-sidebar" id="sidebar"/, route);
       assert.match(html, /aria-controls="sidebar" aria-expanded="false"/, route);
-      assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'mixlock', 'deliveries', 'history'], route);
+      assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'management', 'mixlock', 'deliveries', 'history'], route);
       assert.ok(html.indexOf('/site-navigation.js') < html.indexOf('/assist/app.js'), route);
     }
     for (const route of ['/supply-hub', '/supply-hub/', '/supply-hub/index.html']) {
@@ -30,9 +30,11 @@ async function run() {
       assert.match(html, /<title>Supply Hub · Kmart Group<\/title>/, route);
       assert.match(html, /href="\/" class="customer-link"/, route);
       assert.match(html, /class="sidebar app-sidebar" id="sidebar"/, route);
-      assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'mixlock', 'deliveries', 'history'], route);
+      assert.deepEqual(Array.from(html.matchAll(/<a\b[^>]*data-nav="([^"]+)"/g), match => match[1]), ['assist', 'management', 'mixlock', 'deliveries', 'history'], route);
     }
-    for (const route of ['/assist/styles.css', '/assist/app.js', '/styles.css', '/app.js', '/site-navigation.css', '/site-navigation.js']) {
+    const staffHome = await fetch(base + '/recovery-management').then(response => response.text());
+    assert.match(staffHome, /Recovery Management · Kmart/);
+    for (const route of ['/assist/styles.css', '/assist/app.js', '/styles.css', '/app.js', '/site-navigation.css', '/site-navigation.js', '/staff/app.js', '/staff/styles.css']) {
       const response = await fetch(base + route);
       assert.equal(response.status, 200, route);
       assert.doesNotMatch(await response.text(), /<!DOCTYPE html>/, route);
@@ -63,7 +65,7 @@ async function run() {
     assert.ok(items.includes('2 units'));
     assert.ok(items.includes('&lt;Storage box&gt;'));
     assert.ok(!items.includes(new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'USD' }).format(40)));
-    assert.equal(vm.runInContext('outcomeText(previewCase, previewOrder).heading', context), expectedMoney + ' refund confirmed');
+    assert.equal(vm.runInContext('outcomeText(previewCase, previewOrder).heading', context), 'Saved resolution');
     const scopedView = vm.runInContext(`recoveryItems([
       {name:'<Cushion cover>', qty:1, orderedQty:3, amount:12}
     ], 'AUD', true)`, context);
@@ -76,10 +78,8 @@ async function run() {
     assert.equal(vm.runInContext("isRecoveryReady({status:'ready',stepIndex:0,steps:['Received','Ready']})", context), false);
     assert.equal(vm.runInContext("isRecoveryReady({status:'ready',stepIndex:1,steps:['Received','Ready'],readyForCompletion:false})", context), false);
     assert.equal(vm.runInContext("isRecoveryReady({status:'ready',stepIndex:1,steps:['Received','Ready'],readyForCompletion:true})", context), true);
-    assert.equal(vm.runInContext("recoveryDemoControls({demoControlsAvailable:false})", context), '');
-    const demoControls = vm.runInContext("recoveryDemoControls({demoControlsAvailable:true,demoAdvanceAllowed:true,status:'open',stepIndex:0,steps:['Received','Ready']})", context);
-    assert.ok(demoControls.includes('Demo controls · presentation only'));
-    assert.ok(demoControls.includes('id="advanceDemo"'));
+    assert.ok(!source.includes('Demo controls'));
+    assert.ok(!source.includes('applyDemoRecoveryUpdate'));
     assert.equal(vm.runInContext("recoveryTime('invalid', 'Not available')", context), 'Not available');
     const trackingCalls = [];
     context.fetch = async (url, options = {}) => {
@@ -88,8 +88,6 @@ async function run() {
     };
     for (let index = 0; index < 3; index += 1) await vm.runInContext("readRecoveryStatus('SR/TEST')", context);
     assert.deepEqual(trackingCalls, Array.from({ length: 3 }, () => ({ url: '/api/assist/cases/SR%2FTEST', method: 'GET' })));
-    await vm.runInContext("applyDemoRecoveryUpdate('SR/TEST')", context);
-    assert.deepEqual(trackingCalls.at(-1), { url: '/api/assist/cases/SR%2FTEST/advance', method: 'POST' });
     assert.equal(vm.runInContext("orderPath('SAP-REF/1 #A', 'choose')", context), '#/order/SAP-REF%2F1%20%23A/choose');
     const routed = vm.runInContext(`
       showScreen = (id, screen) => [id, screen];

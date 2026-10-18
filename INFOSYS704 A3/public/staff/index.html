@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recovery Management · Kmart</title>
+  <link rel="stylesheet" href="/assist/styles.css" />
+  <link rel="stylesheet" href="/staff/styles.css" />
+  <link rel="stylesheet" href="/site-navigation.css" />
+</head>
+<body>
+  <header class="top">
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" /></svg></button>
+    <div class="top-brand"><a class="brand" href="/" aria-label="Delivery Assist home"><img src="/assets/kmart-logo.png" alt="Kmart" width="104" height="32" /></a><div class="product"><strong><span class="staff-title-full">Recovery Management</span><span class="staff-title-short">Staff recovery</span></strong><span>Staff workspace</span></div></div>
+    <a class="btn secondary home-link" href="/"><span aria-hidden="true">←</span> Back to home</a>
+  </header>
+  <button class="navigation-backdrop" id="navBackdrop" type="button" aria-label="Close navigation" hidden></button>
+  <div class="workspace-shell">
+    <aside class="sidebar app-sidebar" id="sidebar" aria-label="Kmart workspace navigation">
+      <div class="workspace-heading"><span class="workspace-symbol" aria-hidden="true">KM</span><div><strong>Kmart workspace</strong><span>Customer &amp; buyer tools</span></div><button class="sidebar-close" type="button" aria-label="Close navigation" data-close-navigation data-navigation-dismiss><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button></div>
+      <nav class="nav" aria-label="Main navigation">
+        <div class="nav-label">Customer</div>
+        <a href="/" data-nav="assist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/></svg>Delivery Assist</a>
+        <div class="nav-label">Operations</div>
+        <a href="/recovery-management" class="active" data-nav="management" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M9 5V3h6v2M8 13l3 3 5-6"/></svg>Recovery Management</a>
+        <div class="nav-label">Buyer tools</div>
+        <a href="/supply-hub#/mixlock" data-nav="mixlock"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>Mix-Lock</a>
+        <a href="/supply-hub#/deliveries" data-nav="deliveries"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 5h13v11H1zM14 9h4l4 4v3h-8z"/><circle cx="5.5" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/></svg>Delivery Tracker</a>
+        <a href="/supply-hub#/history" data-nav="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>History</a>
+      </nav>
+      <div class="sidebar-foot"><p>Staff decisions are recorded with an audit trail. A reference is not independent proof of payment or carrier activity.</p></div>
+    </aside>
+    <div class="customer-content" data-navigation-content><main id="staffView" class="staff-main" tabindex="-1"><p role="status">Loading staff access…</p></main></div>
+  </div>
+  <script src="/site-navigation.js"></script>
+  <script src="/staff/app.js"></script>
+</body>
+</html>

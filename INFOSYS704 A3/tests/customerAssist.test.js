@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { createRequire } = require('node:module');
+const { createStaffAccess, DEMO_ACCESS_CODE } = require('../lib/staffAccess');
+const { readyCase } = require('./helpers/workflowFixture');
 
 const filename = path.resolve(__dirname, '../customerAssist.js');
 const source = fs.readFileSync(filename, 'utf8');
@@ -14,11 +16,13 @@ function sapResponse(status = 201) {
   return { ok: status >= 200 && status < 300, status, text: async () => '{}' };
 }
 
-function harness({ mode = 'simulate', key = '', fetchImpl, initialState = { cases: {}, problems: {} } } = {}) {
+function harness({ mode = 'simulate', key = '', fetchImpl, initialState = { cases: {}, problems: {} }, staffKey = 'TEST-STAFF-CODE' } = {}) {
   let saved = JSON.stringify(initialState);
   let writes = 0;
   let fetcher = fetchImpl || (() => { throw new Error('Unexpected SAP call'); });
   const calls = [];
+  const staffAccess = createStaffAccess(staffKey);
+  let cookie = '';
   const memoryFs = {
     readFileSync(file) {
       assert.equal(path.basename(file), 'customer_state.json');
@@ -40,19 +44,20 @@ function harness({ mode = 'simulate', key = '', fetchImpl, initialState = { case
     }
   };
   vm.runInNewContext(source, sandbox, { filename });
-  return {
+  const app = {
     calls,
     get writes() { return writes; },
     state: () => JSON.parse(saved),
     // Test-only fixture for updates received from a trusted external service.
     seedState(state) { saved = JSON.stringify(state); },
     setFetch(fn) { fetcher = fn; },
-    async request(url, body = {}, method = 'POST') {
-      const response = {};
-      response.handled = await sandbox.module.exports.tryHandle({ url, method }, response, {
+    async request(url, body = {}, method = 'POST', headers = {}) {
+      const response = { headers: {}, setHeader(name, value) { this.headers[name.toLowerCase()] = value; } };
+      response.handled = await sandbox.module.exports.tryHandle({ url, method, headers: { host: 'localhost', ...headers }, socket: { remoteAddress: '127.0.0.1' } }, response, {
         sapBase: 'https://sap.example.invalid/sap/opu/odata4/sap/purchaseorder',
         sapKey: key,
         sapMode: mode,
+        staffAccess,
         jsonBody: async () => body,
         sendJson(res, status, data) {
           res.status = status;
@@ -60,8 +65,18 @@ function harness({ mode = 'simulate', key = '', fetchImpl, initialState = { case
         }
       });
       return response;
+    },
+    async staffLogin(name = 'Test recovery reviewer', accessCode = staffKey || DEMO_ACCESS_CODE) {
+      const response = await app.request('/api/assist/staff/login', { name, accessCode });
+      if (response.status === 200) cookie = response.headers['set-cookie'].split(';')[0];
+      return response;
+    },
+    async staffRequest(url, body = {}, method = 'POST', headers = {}) {
+      if (!cookie) assert.equal((await app.staffLogin()).status, 200);
+      return app.request(url, body, method, { cookie, ...headers });
     }
   };
+  return app;
 }
 
 async function open(app, id = 'KM185002', optionId = 'refund') {
@@ -69,17 +84,25 @@ async function open(app, id = 'KM185002', optionId = 'refund') {
 }
 
 async function ready(app, caseId) {
-  await app.request(`/api/assist/cases/${caseId}/advance`);
-  const result = await app.request(`/api/assist/cases/${caseId}/advance`);
-  assert.equal(result.body.recoveryCase.status, 'ready');
+  for (const action of ['start_review', 'approve', 'record_outcome']) {
+    const response = await app.staffRequest(`/api/assist/staff/cases/${caseId}`, {}, 'GET');
+    assert.equal(response.status, 200);
+    const entry = response.body.case;
+    if (!entry.allowedActions.includes(action)) continue;
+    const body = { action, version: entry.version, message: 'Staff test fixture update.' };
+    if (action === 'record_outcome') {
+      body.reference = 'TEST-' + caseId; body.occurredAt = new Date().toISOString();
+      if (entry.outcome !== 'refund') body.scheduledDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    }
+    assert.equal((await app.staffRequest(`/api/assist/staff/cases/${caseId}/actions`, body)).status, 200);
+  }
+  assert.equal((await app.request(`/api/assist/cases/${caseId}`, {}, 'GET')).body.recoveryCase.status, 'ready');
 }
 
 function serviceReady(app, caseId) {
   const state = app.state();
   const recoveryCase = Object.values(state.cases).find(entry => entry.id === caseId);
-  recoveryCase.stepIndex = recoveryCase.steps.length - 1;
-  recoveryCase.status = 'ready';
-  recoveryCase.updatedAt = new Date().toISOString();
+  readyCase(recoveryCase);
   app.seedState(state);
 }
 
@@ -156,9 +179,9 @@ async function run() {
   assert.equal((await open(protectedCase, 'KM185002', 'replace')).status, 409);
   assert.deepEqual(protectedCase.state(), protectedState);
   assert.equal((await open(protectedCase)).body.recoveryCase.id, existing.body.recoveryCase.id);
-  // Restart remains an explicit demo action, not an implicit side effect.
-  assert.equal((await protectedCase.request('/api/assist/orders/KM185002/reset')).status, 200);
-  assert.equal(protectedCase.state().cases.KM185002, undefined);
+  // Customer controls cannot erase staff-managed decisions or history.
+  assert.equal((await protectedCase.request('/api/assist/orders/KM185002/reset')).status, 409);
+  assert.ok(protectedCase.state().cases.KM185002);
 
   // A missing cushion cover is $12, not the $18 carrier-flagged box or $30 order.
   const itemRecovery = harness();
@@ -181,7 +204,7 @@ async function run() {
   await ready(coverRestart, coverId);
   const coverDone = await coverRestart.request(`/api/assist/cases/${coverId}/complete`);
   assert.equal(coverDone.body.recoveryCase.requests.at(-1).body.RequestedAmount, 12);
-  assert.equal(coverDone.body.recoveryCase.outcomeCopy.heading, '$12.00 refund confirmed');
+  assert.equal(coverDone.body.recoveryCase.outcomeCopy.heading, 'Resolution update acknowledged');
   assert.equal(coverDone.body.recoveryCase.affectedItems[0].qty, 1);
   const coverClosed = coverRestart.state();
   assert.equal((await coverRestart.request('/api/assist/orders/KM185002/problem', {
@@ -329,11 +352,11 @@ async function run() {
   assert.equal(sapCase.body.recoveryCase.salesOrder, '990001');
   assert.equal(sapCase.body.recoveryCase.amountMinor, 2555);
   assert.equal(sapCase.body.recoveryCase.requests[0].body.TransactionCurrency, 'USD');
-  await sap.request(`/api/assist/cases/${sapCaseId}/advance`);
   const restarted = harness({ initialState: sap.state() });
   const afterRestart = await restarted.request('/api/assist/orders/KM-SAP-100', {}, 'GET');
   assert.equal(afterRestart.body.recoveryCase.id, sapCaseId);
-  const next = await restarted.request(`/api/assist/cases/${sapCaseId}/advance`);
+  await ready(restarted, sapCaseId);
+  const next = await restarted.request(`/api/assist/cases/${sapCaseId}`, {}, 'GET');
   assert.equal(next.body.recoveryCase.status, 'ready');
   const sapDone = await restarted.request(`/api/assist/cases/${sapCaseId}/complete`);
   assert.equal(sapDone.status, 200);
@@ -342,11 +365,10 @@ async function run() {
   assert.equal(sapDone.body.recoveryCase.requests.at(-1).body.TransactionCurrency, 'USD');
   const cards = await restarted.request('/api/assist/orders', {}, 'GET');
   assert.equal(cards.body.orders.length, 5);
-  assert.equal(cards.body.orders.find(order => order.id === sapId).caseLabel, 'Refund confirmed');
+  assert.equal(cards.body.orders.find(order => order.id === sapId).caseLabel, 'Resolution update acknowledged');
   assert.equal(restarted.calls.length, 0);
-  await restarted.request(`/api/assist/orders/${sapId}/reset`);
-  assert.equal((await restarted.request('/api/assist/orders/990001', {}, 'GET')).body.problem, null);
-  await restarted.request('/api/assist/reset');
+  assert.equal((await restarted.request(`/api/assist/orders/${sapId}/reset`)).status, 409);
+  assert.equal((await restarted.request('/api/assist/reset')).status, 409);
   assert.ok(restarted.state().orders[sapId]);
 
   // First lookup by customer reference queries SAP safely, including apostrophes.
@@ -481,6 +503,7 @@ async function run() {
   const legacyOpened = await open(legacyOrder);
   const legacyState = legacyOrder.state();
   delete legacyState.cases.KM185002.affectedItems;
+  delete legacyState.cases.KM185002.operations;
   legacyState.cases.KM185002.problemCode = 'MISSING';
   legacyState.problems.KM185002 = { code: 'MISSING', title: 'Old missing-item report', detail: 'Saved before item selection was available.', foundAt: 'Earlier' };
   const legacy = harness({ initialState: legacyState });
@@ -491,4 +514,4 @@ async function run() {
 }
 
 if (require.main === module) run().catch(error => { console.error(error); process.exitCode = 1; });
-module.exports = { harness, sapOrder, sapRead };
+module.exports = { harness, sapOrder, sapRead, ready };

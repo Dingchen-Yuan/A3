@@ -25,6 +25,7 @@ function loadEnv() {
   return env;
 }
 const ENV = loadEnv();
+const staffAccess = require('./lib/staffAccess').createStaffAccess(ENV.STAFF_ACCESS_KEY || process.env.STAFF_ACCESS_KEY || '');
 const DEFAULT_BASE = 'https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata4/sap/api_purchaseorder_2/srvd_a2x/sap/purchaseorder/0001';
 const SAP_BASE = (ENV.SAP_BASE_URL || process.env.SAP_BASE_URL || DEFAULT_BASE).replace(/\/+$/, '');
 const SAP_KEY = ENV.SAP_API_KEY || process.env.SAP_API_KEY || '';
@@ -652,10 +653,11 @@ const server = http.createServer(async (req, res) => {
       setState({ locked: {} }); setStore([]); setCases([]);
       return sendJson(res, 200, { ok: true });
     }
-    if (await customerAssist.tryHandle(req, res, { sapBase: SAP_BASE, sapKey: SAP_KEY, sapMode: SAP_MODE, sendJson, jsonBody })) return;
+    if (await customerAssist.tryHandle(req, res, { sapBase: SAP_BASE, sapKey: SAP_KEY, sapMode: SAP_MODE, staffAccess, sendJson, jsonBody })) return;
     if (p.startsWith('/api/')) return sendJson(res, 404, { error: 'Unknown API route' });
 
     // ----- static -----
+    if (['/recovery-management', '/recovery-management/'].includes(p)) return sendFile(res, path.join(PUBLIC_DIR, 'staff', 'index.html'));
     if (['/supply-hub', '/supply-hub/', '/supply-hub/index.html'].includes(p)) {
       return sendFile(res, path.join(PUBLIC_DIR, 'index.html'));
     }
@@ -675,6 +677,8 @@ if (require.main === module) {
     const port = server.address().port;
     console.log(`Kmart Delivery Assist running on http://localhost:${port}`);
     console.log(`Supply Hub buyer workspace: http://localhost:${port}/supply-hub`);
+    console.log(`Recovery Management: http://localhost:${port}/recovery-management`);
+    console.log(staffAccess.hintAvailable ? 'Staff sign-in uses the public classroom code; reveal it with the access-code hint button.' : 'Private staff access code configured; public code hint is disabled.');
     console.log(`SAP base: ${SAP_BASE}`);
     console.log(`SAP key: ${SAP_KEY ? 'set' : 'NOT set (cached SAP data will be used)'} · write mode: ${SAP_MODE}`);
   });

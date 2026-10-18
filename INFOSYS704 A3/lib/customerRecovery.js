@@ -7,27 +7,25 @@
 const SERVICE_API = 'OP_API_SERVICE_REQUEST_SRV_0001';
 const amounts = require('./customerAmounts');
 const selections = require('./customerSelections');
+const workflow = require('./recoveryWorkflow');
+const crypto = require('node:crypto');
 
 const STEP_COPY = {
   redeliver: [
     'Request received',
-    'Fulfilment team accepted the redelivery',
-    'Booked for tomorrow, 5–8pm'
+    'Service team reviewing', 'Request approved — awaiting fulfilment', 'Fulfilment arrangement recorded'
   ],
   collect: [
     'Request received',
-    'Being held at Kmart Broadway',
-    'Ready to collect from 10am tomorrow'
+    'Service team reviewing', 'Request approved — awaiting fulfilment', 'Fulfilment arrangement recorded'
   ],
   refund: [
     'Request received',
-    'Refund checked against the sales order',
-    'Ready to send back to your original payment'
+    'Service team reviewing', 'Refund approved — awaiting finance', 'Finance confirmation recorded'
   ],
   replace: [
     'Request received',
-    'Replacement allocated at the fulfilment centre',
-    'Booked for tomorrow, 5–8pm'
+    'Service team reviewing', 'Request approved — awaiting fulfilment', 'Fulfilment arrangement recorded'
   ]
 };
 
@@ -49,7 +47,7 @@ function refundDetail(order, amount, selected = selections.forProblem(order)) {
     const scope = selected.length === 1 && selected[0].qty === selected[0].orderedQty ? 'That item only' : 'Only the selected items and quantities';
     return `${scope}, back to your original payment. The rest of the order stays as it is.`;
   }
-  return 'Back to your original payment. This order will not be delivered.';
+  return 'Request a refund to your original payment instead of a replacement. Staff will review and confirm the outcome.';
 }
 
 function optionsFor(order, problem) {
@@ -65,16 +63,16 @@ function optionsFor(order, problem) {
     return [
       {
         id: 'redeliver',
-        title: 'Deliver again tomorrow',
-        detail: 'Same address, 5–8pm. No extra charge.',
+        title: 'Request another delivery attempt',
+        detail: 'Same address. The team will confirm the available date. No extra charge.',
         recommended: true,
         outcome: 'redelivery',
         amount: 0
       },
       {
         id: 'collect',
-        title: 'Collect from Kmart Broadway',
-        detail: 'Service desk, Bay Street, from 10am tomorrow. Bring this order number.',
+        title: 'Request collection from a Kmart store',
+        detail: 'The team will confirm a suitable collection location and date.',
         recommended: false,
         outcome: 'collection',
         amount: 0
@@ -94,7 +92,7 @@ function optionsFor(order, problem) {
     {
       id: 'replace',
       title: 'Send a replacement',
-      detail: `${itemSummary} tomorrow, 5–8pm. No extra charge.`,
+      detail: `${itemSummary}. The team will review stock and confirm the arrangements. No extra charge.`,
       recommended: true,
       outcome: 'replacement',
       amount: 0
@@ -115,8 +113,7 @@ function optionById(order, problem, optionId) {
 }
 
 function newCaseId(orderId) {
-  const tail = String(orderId).replace(/\D/g, '').slice(-4);
-  return `SR-${tail}${String(Date.now()).slice(-4)}`;
+  return 'SR-' + crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
 function serviceRequestBody({ recoveryCase, order, option, action }) {
@@ -171,23 +168,12 @@ function createCase({ order, problem, option }) {
     mode: 'simulate',
     body: serviceRequestBody({ recoveryCase, order, option, action: 'create' })
   });
-  return recoveryCase;
-}
-
-function advance(recoveryCase) {
-  if (!recoveryCase || recoveryCase.status === 'closed' || recoveryCase.stepIndex >= recoveryCase.steps.length - 1) return recoveryCase;
-  if (recoveryCase.stepIndex < recoveryCase.steps.length - 1) {
-    recoveryCase.stepIndex += 1;
-  }
-  recoveryCase.status = recoveryCase.stepIndex >= recoveryCase.steps.length - 1 ? 'ready' : 'open';
-  recoveryCase.updatedAt = new Date().toISOString();
+  workflow.initialize(recoveryCase);
   return recoveryCase;
 }
 
 function canComplete(recoveryCase) {
-  return Boolean(recoveryCase && recoveryCase.status === 'ready' &&
-    Array.isArray(recoveryCase.steps) && recoveryCase.steps.length &&
-    recoveryCase.stepIndex === recoveryCase.steps.length - 1);
+  return workflow.canComplete(recoveryCase);
 }
 
 function complete(recoveryCase, order, option) {
@@ -199,51 +185,34 @@ function complete(recoveryCase, order, option) {
   recoveryCase.status = 'closed';
   recoveryCase.updatedAt = new Date().toISOString();
   recoveryCase.closedAt = recoveryCase.updatedAt;
+  recoveryCase.customerAcknowledgedAt = recoveryCase.updatedAt;
+  recoveryCase.operations.audit.push({ action: 'customer_acknowledged', at: recoveryCase.updatedAt, actor: { role: 'customer' }, message: workflow.stage(recoveryCase) === 'rejected' ? 'Customer acknowledged the decision.' : 'Customer acknowledged the recorded resolution.' });
+  if (workflow.stage(recoveryCase) === 'rejected') return recoveryCase;
   const body = serviceRequestBody({ recoveryCase, order, option, action: 'complete' });
   body.settlement = recoveryCase.outcome === 'refund'
-    ? 'Customer refund confirmed in Delivery Assist and linked to the sales order. API_BILLING_DOCUMENT_REQUEST_SRV cannot create a refund document.'
-    : 'No billing document. The sales order stays open for the replacement, redelivery or collection.';
+    ? 'Customer acknowledged a staff-recorded refund confirmation. This application does not process payments or independently verify settlement. API_BILLING_DOCUMENT_REQUEST_SRV cannot create a refund document.'
+    : 'Customer acknowledged the staff-recorded fulfilment arrangement. No inventory reservation or carrier booking is performed by this application.';
   recoveryCase.requests.push({ at: recoveryCase.updatedAt, mode: 'simulate', body });
   return recoveryCase;
 }
 
 function outcomeCopy(recoveryCase, order) {
-  const item = (order.items.find(entry => entry.damaged) || order.items[0]).name;
   const closed = recoveryCase.status === 'closed';
-  if (recoveryCase.outcome === 'refund') {
+  const operations = recoveryCase.operations;
+  if (operations && operations.stage === 'rejected') {
+    return { heading: closed ? 'Decision acknowledged' : 'Recovery request declined', lead: operations.rejectionReason, confirm: 'Acknowledge decision', done: 'Decision acknowledged' };
+  }
+  if (operations && operations.outcome) {
+    const recorded = operations.outcome;
+    const heading = recoveryCase.outcome === 'refund' ? `${money(recoveryCase.amount, recoveryCase.currency || amounts.currencyFor(order))} refund confirmation recorded` : 'Fulfilment arrangement recorded';
     return {
-      heading: closed ? `${money(recoveryCase.amount, recoveryCase.currency || amounts.currencyFor(order))} refund confirmed` : `Refund ${money(recoveryCase.amount, recoveryCase.currency || amounts.currencyFor(order))}`,
-      lead: recoveryCase.detail || refundDetail(order, recoveryCase.amount),
-      confirm: 'Confirm refund',
-      done: 'Refund confirmed'
+      heading: closed ? 'Resolution update acknowledged' : heading,
+      lead: `${recorded.message}${recoveryCase.affectedItems ? ' Items: ' + selections.summary(recoveryCase.affectedItems) + '.' : ''} Reference: ${recorded.reference}.${recorded.scheduledDate ? ' Arranged date: ' + recorded.scheduledDate + '.' : ''}${recoveryCase.selectionIsPartial ? ' Other items and units stay unchanged.' : ''} This update was recorded by staff and has not been independently verified with the bank or carrier.`,
+      confirm: 'Acknowledge this resolution', done: 'Resolution update acknowledged'
     };
   }
-  if (recoveryCase.outcome === 'replacement') {
-    const damaged = recoveryCase.problemCode === 'DAMAGED';
-    const scope = recoveryCase.affectedItems ? selections.summary(recoveryCase.affectedItems) : item;
-    return {
-      heading: closed ? 'Replacement confirmed' : 'Replacement tomorrow, 5–8pm',
-      lead: damaged
-        ? `A replacement for ${scope} will go to the same address. Keep or discard the damaged units.${recoveryCase.selectionIsPartial ? ' Other items and units stay unchanged.' : ''}`
-        : `A replacement for ${scope} will go to the same address. You do not need to call us.${recoveryCase.selectionIsPartial ? ' Other items and units stay unchanged.' : ''}`,
-      confirm: 'Confirm replacement',
-      done: 'Replacement confirmed'
-    };
-  }
-  if (recoveryCase.outcome === 'collection') {
-    return {
-      heading: closed ? 'Collection confirmed' : 'Ready to collect from Kmart Broadway',
-      lead: 'Service desk, Bay Street, from 10am tomorrow. Bring this order number.',
-      confirm: 'Confirm collection',
-      done: 'Collection confirmed'
-    };
-  }
-  return {
-    heading: closed ? 'Redelivery confirmed' : 'Redelivery tomorrow, 5–8pm',
-    lead: 'Same address. No extra charge.',
-    confirm: 'Confirm redelivery',
-    done: 'Redelivery confirmed'
-  };
+  if (closed) return { heading: 'Previous resolution recorded', lead: recoveryCase.detail || 'This is a historical saved case.', confirm: 'View recorded resolution', done: 'Previous resolution recorded' };
+  return { heading: 'Awaiting staff review or confirmation', lead: 'The responsible team will review the request and record the outcome here.', confirm: 'Awaiting staff confirmation', done: 'Update pending' };
 }
 
 module.exports = {
@@ -256,7 +225,6 @@ module.exports = {
   optionById,
   refundDetail,
   createCase,
-  advance,
   canComplete,
   complete,
   outcomeCopy,

@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const amounts = require('../lib/customerAmounts');
 const recovery = require('../lib/customerRecovery');
+const { readyCase } = require('./helpers/workflowFixture');
 
 assert.equal(amounts.currencyCode('usd'), 'USD');
 assert.equal(amounts.toMinor('1.005'), 101);
@@ -33,14 +34,14 @@ assert.equal(recoveryCase.amountMinor, 2000);
 assert.equal(recoveryCase.currency, 'USD');
 assert.equal(recoveryCase.requests[0].body.RequestedAmount, 20);
 assert.equal(recoveryCase.requests[0].body.TransactionCurrency, 'USD');
-recovery.advance(recoveryCase);
-recovery.advance(recoveryCase);
+readyCase(recoveryCase);
 // Completion uses the amount/currency recorded when the customer chose, not a
 // newly calculated option that could have changed during the recovery.
 recovery.complete(recoveryCase, { ...order, currency: 'AUD' }, { ...option, amount: 99 });
 assert.equal(recoveryCase.requests.at(-1).body.RequestedAmount, 20);
 assert.equal(recoveryCase.requests.at(-1).body.TransactionCurrency, 'USD');
-assert.equal(recovery.outcomeCopy(recoveryCase, order).heading, amounts.money(20, 'USD') + ' refund confirmed');
+assert.equal(recovery.outcomeCopy(recoveryCase, order).heading, 'Resolution update acknowledged');
+assert.equal(recoveryCase.operations.outcome.externallyVerified, false);
 
 // ISO currencies do not all use two decimal places.
 assert.equal(amounts.toMinor('995', 'JPY'), 995);

@@ -5,6 +5,7 @@ INFOSYS 704 A3 prototype for Kmart Group (Wesfarmers). **Delivery Assist is the 
 | Module | Business problem | Journey |
 | --- | --- | --- |
 | **Delivery Assist (main app)** | Customers lack one clear journey from a delivery problem to a confirmed recovery. | Track my order → Understand what is happening → Identify a delivery problem → Choose what to do → Track the recovery → Complete refund/replacement |
+| **Recovery Management (staff)** | Requests need accountable review and evidence-backed operational updates. | Sign in → Review → Approve/decline → Record finance/fulfilment reference → Customer acknowledges |
 | **Mix-Lock** | Anko commits the full colour/size mix ~9 months out; wrong guesses end up as markdowns. | Select line → Review signal → Adjust mix → Confirm mix lock |
 | **Delivery Tracker** | Inbound delivery problems (late, short, damaged, rejected) are found late and handled by email. | Track → Understand → Identify problem → Choose action → Track recovery → Complete |
 
@@ -20,11 +21,15 @@ node server.js
 
 Open <http://localhost:3000> for **Delivery Assist**. The **Supply Hub buyer workspace** is at <http://localhost:3000/supply-hub>. The earlier `/assist/index.html` address still works, and old buyer hash bookmarks such as `/#/deliveries` forward to Supply Hub.
 
-Both experiences share the same left navigation: **Delivery Assist → Mix-Lock → Delivery Tracker → History**. It stays visible above 640px (including the OpenCode preview); phones use the menu button, with Escape/backdrop closing and keyboard focus handling. Delivery Assist's six-step progress remains on the page, with the full journey also available in the sidebar's expandable section.
+**Recovery Management** is at <http://localhost:3000/recovery-management>. The local classroom staff code is **`INFOSYS_704`**. Click **Staff access code hint** on the sign-in page to reveal it, or click again to hide it. This deliberately public code is for demonstration convenience, not meaningful staff protection.
 
-- **Without a key**, the customer demo catalogue and simulated recoveries still work. Supply Hub reads POs from `data/sap_cache.json`, and its header shows "SAP · cached snapshot".
+To use a private code, set a different `STAFF_ACCESS_KEY` in your git-ignored `.env` or environment. A privately configured code disables the public hint and is never returned by the hint endpoint or printed in server logs. Do not commit private credentials.
+
+All experiences share the same left navigation: **Delivery Assist → Recovery Management → Mix-Lock → Delivery Tracker → History**. It stays visible above 640px (including the OpenCode preview); phones use the menu button, with Escape/backdrop closing and keyboard focus handling. Delivery Assist remains the main experience.
+
+- **Without a SAP key**, the customer catalogue and staff-managed local workflow still work. SAP write requests remain in sandbox/simulation mode. Supply Hub reads POs from `data/sap_cache.json`.
 - **With a key**, Supply Hub supports live SAP purchase-order reads and refreshes its snapshot. Delivery Assist can also query the sales-order API; the four customer demo timelines remain simulated.
-- **Reset demo** in the buyer sidebar clears buyer locks, recovery cases and saved SAP requests. Customer orders have a separate "Start this order again" action.
+- **Reset demo** in the buyer sidebar only clears buyer state. Staff-managed customer cases and their audit history cannot be erased by customer reset endpoints.
 
 ## SAP integration
 
@@ -83,6 +88,7 @@ INFOSYS704 A3/
 ├── public/
 │   ├── index.html          buyer shell (served at /supply-hub)
 │   ├── assist/             main customer app (served at /)
+│   ├── staff/              authenticated Recovery Management workspace
 │   ├── styles.css          design system
 │   ├── app.js              all screens (hash routing)
 │   ├── allocation.js       mix allocation maths
@@ -112,7 +118,7 @@ Delivery Assist is the default experience at [http://localhost:3000](http://loca
 | Order | What the customer sees | Use it to show |
 | --- | --- | --- |
 | `KM185002` | ANKO storage box delivered damaged | Replacement, or a refund of $18, not the whole $30 order |
-| `KM184773` | Lamp delivery attempted, no one home | Redeliver, collect from Kmart Broadway, or refund |
+| `KM184773` | Lamp delivery attempted, no one home | Request redelivery, a confirmed collection arrangement, or refund |
 | `KM184866` | Bath towel a day past the promise | A delay, then a refund of $16 or a replacement |
 | `KM184920` | Knit throw out for delivery | A healthy order, plus “Something’s wrong” |
 
@@ -122,27 +128,31 @@ A delay finishes as a replacement or a refund. The service request uses `OP_API_
 
 - Sales-order numbers and customer references use one shared lookup. SAP orders receive stable internal IDs such as `SAP-990001`; the original sales-order number and customer reference remain searchable aliases.
 - Successful reads save an order snapshot in the git-ignored `data/customer_state.json`. The same snapshot is used for reporting, recovery, reopening and the recent-orders list, including after a server restart or when SAP is unavailable. Lookups reuse that snapshot rather than automatically refreshing prices; its read time is shown under SAP connection details.
-- Restarting an order or resetting customer recovery clears problems/cases but keeps saved SAP order snapshots. Existing demo-only state files remain compatible.
+- Saved SAP snapshots survive server restarts. Staff-managed case history cannot be cleared from the customer interface. Older saved cases remain readable; active older cases can be taken into staff review without discarding their original progress or SAP request history.
 - SAP `NetAmount` is a **line total**, not a unit price. Two units with `NetAmount=20.00` therefore total 20.00, not 40.00. Totals use integer minor-unit arithmetic, and the original transaction currency is kept in the UI and recovery request (including currencies with zero or three decimal places).
 - Missing/invalid amounts, quantities or currencies are rejected instead of creating zero-valued refund orders. Ambiguous customer references require a sales-order number rather than selecting an arbitrary order.
 
 ### Recovery safeguards
 
-- A case can only complete after reaching its final recovery step (`ready`).
+- A case can only close after staff record an outcome or a declined decision, followed by explicit customer acknowledgement. Merely approving a refund does not mean it has been paid.
 - Completing a closed case again returns the existing result without another request.
 - Customer-state mutations are serialized within the Node server so concurrent clicks cannot create duplicate confirmed requests or overwrite another order's case.
 - In `live` mode, missing credentials, SAP errors and timeouts return an error rather than silently switching to simulation. Failed creation saves no confirmed case; failed completion leaves the case ready to retry.
-- Reporting another problem or choosing a different option cannot silently erase an existing case. Restarting remains an explicit demo action.
+- Reporting another problem or choosing a different option cannot silently erase an existing case. Amounts, currency and selected quantities stay frozen.
 
-### Read-only recovery tracking
+### Staff review and read-only recovery tracking
 
 - **Refresh status** uses `GET /api/assist/cases/{caseId}`. It reads the saved case without advancing steps, completing an outcome, updating the case timestamp, populating SAP caches or sending SAP requests.
 - **Last updated** is the saved case's `updatedAt`; **Last checked** is the response-only `recoveryCheckedAt` timestamp from the latest successful read. Refresh failures keep the last displayed status and checked time and show a retryable error.
-- Simulated progress is under a separate, collapsed **Demo controls · presentation only** panel. **Advance demo** represents a simulated supplier/fulfilment update; it is not part of customer status checking.
-- The server permits demo advancement only in `simulate` mode for a case originally created in simulation. Live cases and live-mode servers reject manual advancement. Repeating advancement at the final step is a no-op and does not change `updatedAt`.
-- **Review the outcome** appears only when the case is ready. Refreshing a ready case does not confirm it: the customer must still explicitly confirm the refund/replacement.
+- Customer demo controls have been removed. The old `/advance` endpoint returns `410` and cannot progress a case.
+- Staff must sign in, begin review, and approve or decline with a customer-visible reason. An approved case stays pending until staff record a reference and confirmation time; fulfilment arrangements also require a scheduled date.
+- Every staff action records the signed-in operator, time, transition and notes. Internal notes are excluded from customer responses. Version checks reject stale or duplicate actions.
+- Recorded references always have `source: staff_recorded` and `externallyVerified: false`. The UI says **Finance confirmation recorded** or **Fulfilment arrangement recorded**, not "bank-paid" or "carrier-verified".
+- **Review the outcome** appears only after a recorded outcome/decision. Customer acknowledgement closes the request; a declined request creates no refund/fulfilment write.
 
-For a presentation, open **Demo controls** on Step 5 and advance the two simulated updates, then use **Review the outcome** and confirm. No live carrier/status-feed integration is implied by this demo.
+For a presentation, use a customer tab and a signed-in staff tab. Submit a customer request; staff begin review, approve it, and record the relevant confirmation reference. Refresh the customer tab to see each recorded update, then acknowledge the resolution. Use sample references only in clearly identified test scenarios; entering a reference never processes or independently verifies an external transaction.
+
+Staff access uses a shared local code, rate-limited sign-in, an eight-hour HttpOnly/SameSite session cookie, and server-side role checks. With the public classroom hint enabled, anyone can obtain a staff session: this is **demonstration role separation, not secure access control or Kmart SSO**. Do not use the public code with real customer/finance data. Production requires private credentials/SSO, individual roles, HTTPS, customer ownership checks, tamper-resistant storage, and verified finance/fulfilment integrations.
 
 ### Item-specific problems and partial recovery
 
@@ -152,7 +162,7 @@ For a presentation, open **Demo controls** on Step 5 and advance the two simulat
 - Partial values are proportional to the authoritative line total and rounded once in the order currency: **2 of 3 units on a $1 line = $0.67**, while all 3 remain $1.00.
 - The case freezes the selected item names, quantities, values and currency. Options, recovery tracking, confirmation and reopening all show that scope; unselected units/items are unchanged. Existing saved cases and the original $18 damaged-box demo remain supported.
 
-To demonstrate the new flow, open `KM185002` (use **Start this order again** if it already has a case), confirm **An item is missing**, select **1 ANKO Cushion Cover**, then choose its **$12 refund** or replacement. The box is not included in that recovery.
+For an order without an existing case, select **An item is missing**, choose the affected product/quantity, then request its refund or replacement. For `KM185002`, a missing **1 ANKO Cushion Cover** requests **$12**, not the box's $18 or whole order's $30. Existing active cases remain available for staff review; historical closed cases are retained read-only.
 
 Refund/replacement confirmations are prototype outcomes, not actual payments or replacement dispatches. SAP amounts are the supplied net line amounts; this is not a tax, shipping or payment-settlement integration. Carrier-driven recovery updates remain a separate improvement.
 
@@ -164,9 +174,11 @@ node tests/customerAmounts.test.js
 node tests/customerSelections.test.js
 node tests/customerAssist.test.js
 node tests/customerTracking.test.js
+node tests/recoveryManagement.test.js
+node tests/staffAccessHint.test.js
 node tests/navigation.test.js
 ```
 
-The API tests use in-memory state and mocked SAP responses, including SAP-only orders through lookup, reporting, recovery, restart and reopening. Tracking tests verify read-only refresh, unchanged case timestamps, blocked live demo advancement and explicit completion. Selection/amount tests cover partial quantities, duplicate SKUs, invalid/tampered selections, zero-value items, decimal precision and currencies. Navigation/view tests check encoded IDs, scope/totals and GET-only refresh requests using a temporary local port. None of these tests resets your saved demo state or sends real SAP writes.
+Tests use in-memory state and mocked SAP responses. They cover staff authentication, decision ordering, references/dates, private-note filtering, stale versions, rejection without a financial write, frozen amounts, SAP lookup, partial quantities and read-only customer refresh. Navigation/view tests use a temporary local port. None of these tests resets your saved case history or sends real SAP writes.
 
 Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.
