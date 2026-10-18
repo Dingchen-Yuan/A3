@@ -8,9 +8,11 @@
 .staff-form input, .staff-form textarea, .staff-form select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #cbd4df; border-radius: 8px; background: #fff; color: var(--ink); font: inherit; font-weight: 400; }
 .staff-form textarea { min-height: 88px; resize: vertical; }
 .staff-form .btn { margin-top: 20px; }
-.staff-form .staff-hint-toggle { display: flex; width: fit-content; max-width: 100%; min-height: 40px; margin-top: 12px; padding: 8px 12px; font-size: 12px; }
-.staff-code-hint { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; }
-.staff-code-hint code { color: var(--ink); font-size: 18px; font-weight: 700; letter-spacing: .04em; overflow-wrap: anywhere; }
+.staff-form .staff-hint-toggle { display: flex; width: fit-content; max-width: 100%; min-height: 40px; margin-top: 12px; padding: 8px 12px; border-color: #1d4ed8; background: #1d4ed8; color: #fff; font-size: 12px; }
+.staff-form .staff-hint-toggle:hover { border-color: #1e40af; background: #1e40af; color: #fff; }
+.staff-form .staff-hint-toggle:active { border-color: #1e3a8a; background: #1e3a8a; }
+.staff-code-hint { margin-top: 12px; padding: 14px 16px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; }
+.staff-code-hint code { color: #1e3a8a; font-size: 18px; font-weight: 700; letter-spacing: .04em; overflow-wrap: anywhere; }
 .staff-layout { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.5fr); gap: 24px; margin-top: 28px; align-items: start; }
 .staff-queue { display: grid; gap: 10px; }
 .staff-case { display: block; width: 100%; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfd; color: var(--ink); text-align: left; }

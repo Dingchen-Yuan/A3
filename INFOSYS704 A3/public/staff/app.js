@@ -108,3 +108,6 @@ async function refresh(message = '') {
   render(message);
 }
 (async () => { try { const session = await api('/session'); accessHintAvailable = session.hintAvailable === true; if (!session.authenticated) return login(); actor = session.actor; await refresh(); } catch (error) { login(error.message); } })();
+window.addEventListener('kmart:demo-reset', () => {
+  location.reload();
+});

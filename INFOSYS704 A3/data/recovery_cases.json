@@ -1,1 +1,59 @@
-[]
+[
+  {
+    "id": "RC-1001",
+    "shipmentId": "S001",
+    "product": "ANKO Knit Throw AW27",
+    "poNumber": "4500207755",
+    "problem": {
+      "type": "delay",
+      "title": "Arriving 9 days late",
+      "severity": "High",
+      "units": 171,
+      "value": 1676,
+      "daysLate": 9
+    },
+    "action": {
+      "id": "expedite",
+      "title": "Expedite by air freight",
+      "cost": 159,
+      "daysToShelf": 6
+    },
+    "comment": "",
+    "owner": "Anko Buyer – Homewares",
+    "steps": [
+      "Raised",
+      "Supplier & carrier notified",
+      "Air-freight split booked",
+      "Expedited stock received",
+      "Resolved"
+    ],
+    "stepIndex": 4,
+    "status": "Resolved",
+    "history": [
+      {
+        "step": "Raised",
+        "at": "2026-10-18T13:15:26.560Z"
+      },
+      {
+        "step": "Supplier & carrier notified",
+        "at": "2026-10-18T13:15:28.317Z"
+      },
+      {
+        "step": "Air-freight split booked",
+        "at": "2026-10-18T13:15:28.930Z"
+      },
+      {
+        "step": "Expedited stock received",
+        "at": "2026-10-18T13:15:29.273Z"
+      },
+      {
+        "step": "Resolved",
+        "at": "2026-10-18T13:15:29.618Z"
+      }
+    ],
+    "writeId": "wr_1792329326559_n6f4oy",
+    "createdAt": "2026-10-18T13:15:26.560Z",
+    "resolvedAt": "2026-10-18T13:15:29.618Z",
+    "newEta": "2026-10-24"
+  }
+]

@@ -43,6 +43,21 @@ function writeState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
+// Only the explicit, confirmed application-wide demo reset uses this bypass.
+// Customer reset routes still protect staff decisions and audit history.
+function resetDemo(resetBuyerState = () => {}) {
+  return serializeMutation(async () => {
+    const state = readState();
+    if (Object.values(state.cases).some(entry => (entry.requests || []).some(request => request.mode === 'live'))) {
+      throw new workflow.WorkflowError('Demo reset cannot erase cases recorded in live SAP mode.', 409);
+    }
+    await resetBuyerState();
+    state.cases = {};
+    state.problems = {};
+    writeState(state);
+  });
+}
+
 async function sapGet(root, key, sapPath) {
   if (!root || !key) return null;
   try {
@@ -605,4 +620,4 @@ async function tryHandle(req, res, ctx) {
   }
 }
 
-module.exports = { tryHandle, salesRoot };
+module.exports = { tryHandle, salesRoot, resetDemo };

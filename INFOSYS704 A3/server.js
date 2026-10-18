@@ -519,7 +519,13 @@ function sendFile(res, filePath) {
   } catch (e) { res.writeHead(404); res.end('Not found'); }
 }
 function collectBody(req) {
-  return new Promise(resolve => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) req.destroy(); }); req.on('end', () => resolve(d)); });
+  return new Promise((resolve, reject) => {
+    let d = '';
+    req.on('data', c => { d += c; if (d.length > 1e6) req.destroy(); });
+    req.on('end', () => resolve(d));
+    req.on('aborted', () => reject(new Error('Request was cancelled.')));
+    req.on('error', reject);
+  });
 }
 async function jsonBody(req) { try { return JSON.parse(await collectBody(req) || '{}'); } catch (e) { return null; } }
 function tryJson(t) { try { return JSON.parse(t); } catch (e) { return t; } }
@@ -530,7 +536,8 @@ async function lineWithSap(l, state) {
   return Object.assign({}, l, { sap, cached, cachedAt, status: lock ? 'Mix locked' : 'G1 committed', lockedDetail: lock || null });
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleHttpRequest(req, res) {
+  if (req.destroyed || res.destroyed) return;
   try {
     const u = new URL(req.url, 'http://localhost');
     const p = u.pathname;
@@ -650,8 +657,14 @@ const server = http.createServer(async (req, res) => {
       return entry ? sendJson(res, 200, entry) : sendJson(res, 404, { error: 'Not found' });
     }
     if (p === '/api/reset-state' && req.method === 'POST') {
-      setState({ locked: {} }); setStore([]); setCases([]);
-      return sendJson(res, 200, { ok: true });
+      if (SAP_MODE !== 'simulate' || !staffAccess.sameOrigin(req)) return sendJson(res, 403, { error: 'Reset demo is only available from this app in simulation mode.' });
+      const body = await jsonBody(req);
+      if (!body || body.confirmAll !== true) return sendJson(res, 400, { error: 'Confirm the reset of all demo modules before continuing.' });
+      if (getStore().some(entry => entry.mode === 'live')) return sendJson(res, 409, { error: 'Demo reset cannot erase requests recorded in live SAP mode.' });
+      await customerAssist.resetDemo(() => {
+        setState({ locked: {} }); setStore([]); setCases([]);
+      });
+      return sendJson(res, 200, { ok: true, resetModules: ['mixlock', 'deliveryTracker', 'deliveryAssist', 'recoveryManagement'] });
     }
     if (await customerAssist.tryHandle(req, res, { sapBase: SAP_BASE, sapKey: SAP_KEY, sapMode: SAP_MODE, staffAccess, sendJson, jsonBody })) return;
     if (p.startsWith('/api/')) return sendJson(res, 404, { error: 'Unknown API route' });
@@ -668,7 +681,19 @@ const server = http.createServer(async (req, res) => {
     return sendFile(res, path.join(PUBLIC_DIR, 'assist', 'index.html'));
   } catch (e) {
     console.error(e);
-    sendJson(res, 500, { error: e.message });
+    sendJson(res, e.status || 500, { error: e.message });
+  }
+}
+
+// A reset must run after earlier writes finish, rather than letting an in-flight
+// buyer request restore old data after the customer/staff queues were cleared.
+let mutationQueue = Promise.resolve();
+const server = http.createServer((req, res) => {
+  if (req.method === 'POST') {
+    const result = mutationQueue.then(() => handleHttpRequest(req, res));
+    mutationQueue = result.catch(() => {});
+  } else {
+    handleHttpRequest(req, res);
   }
 });
 

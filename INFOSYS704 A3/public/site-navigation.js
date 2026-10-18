@@ -58,6 +58,14 @@
   });
   phone.addEventListener('change', () => close(phone.matches && sidebar.contains(document.activeElement)));
   window.addEventListener('hashchange', () => close());
-  window.KmartNavigation = { close, setActive };
+  const resetKey = 'kmart:demo-reset';
+  function notifyReset() {
+    try { window.localStorage.setItem(resetKey, Date.now() + '-' + Math.random().toString(36).slice(2)); } catch (err) { /* Storage can be unavailable in private browsing. */ }
+    window.dispatchEvent(new CustomEvent(resetKey));
+  }
+  window.addEventListener('storage', event => {
+    if (event.key === resetKey && event.newValue) window.dispatchEvent(new CustomEvent(resetKey));
+  });
+  window.KmartNavigation = { close, setActive, notifyReset };
   close();
 })();

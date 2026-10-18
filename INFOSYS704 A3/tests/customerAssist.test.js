@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const { createRequire } = require('node:module');
 const { createStaffAccess, DEMO_ACCESS_CODE } = require('../lib/staffAccess');
 const { readyCase } = require('./helpers/workflowFixture');
+const { allOrders } = require('../data/customerOrders');
 
 const filename = path.resolve(__dirname, '../customerAssist.js');
 const source = fs.readFileSync(filename, 'utf8');
@@ -364,7 +365,7 @@ async function run() {
   assert.equal(sapDone.body.recoveryCase.requests.at(-1).body.RequestedAmount, 25.55);
   assert.equal(sapDone.body.recoveryCase.requests.at(-1).body.TransactionCurrency, 'USD');
   const cards = await restarted.request('/api/assist/orders', {}, 'GET');
-  assert.equal(cards.body.orders.length, 5);
+  assert.equal(cards.body.orders.length, allOrders().length + 1);
   assert.equal(cards.body.orders.find(order => order.id === sapId).caseLabel, 'Resolution update acknowledged');
   assert.equal(restarted.calls.length, 0);
   assert.equal((await restarted.request(`/api/assist/orders/${sapId}/reset`)).status, 409);

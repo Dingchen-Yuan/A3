@@ -556,4 +556,8 @@ function renderOutcome(order) {
 }
 
 window.addEventListener('hashchange', route);
+window.addEventListener('kmart:demo-reset', () => {
+  history.replaceState(null, '', location.pathname + location.search + '#/');
+  location.reload();
+});
 route();

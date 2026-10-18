@@ -1,6 +1,6 @@
-// Customer-facing catalogue for the prototype.
-// Document ids match the SAP objects the API pool can actually read:
-// API_SALES_ORDER_SRV, API_OUTBOUND_DELIVERY_SRV, CE_FREIGHTORDER_0001.
+// Fictional customer orders and delivery timelines for the prototype.
+// Document ids illustrate SAP sales-order, outbound-delivery and freight-order
+// references; they are not verified records from a connected SAP system.
 
 const ORDERS = [
   {
@@ -113,6 +113,164 @@ const ORDERS = [
     problem: null,
     headline: 'Your knit throw is out for delivery',
     summary: 'Out for delivery'
+  },
+  {
+    id: 'KM185104',
+    salesOrder: '450252',
+    outboundDelivery: '',
+    freightOrder: '',
+    customer: 'Olivia Wilson',
+    soldToParty: '1000612',
+    channel: 'Home delivery',
+    address: 'Chatswood NSW',
+    promise: 'Wed 21 Oct, by 8pm',
+    node: 'Moorebank fulfilment centre',
+    items: [
+      { sku: 'ANKO-AIRFRY-35', name: 'ANKO Air Fryer 3.5L', qty: 1, price: 59, damaged: false },
+      { sku: 'ANKO-TEATOWEL', name: 'ANKO Tea Towel', qty: 2, price: 6.50, damaged: false }
+    ],
+    events: [
+      { at: 'Mon 19 Oct, 9:10am', title: 'Order placed — waiting to be packed', state: 'current' }
+    ],
+    problem: null,
+    headline: 'Your kitchen essentials order is confirmed',
+    summary: 'Order confirmed'
+  },
+  {
+    id: 'KM185116',
+    salesOrder: '450253',
+    outboundDelivery: '80004563',
+    freightOrder: '',
+    customer: 'Ethan Nguyen',
+    soldToParty: '1000623',
+    channel: 'Home delivery',
+    address: 'Geelong VIC',
+    promise: 'Wed 21 Oct, by 8pm',
+    node: 'Truganina fulfilment centre',
+    items: [
+      { sku: 'ANKO-QUILT-Q', name: 'ANKO Queen Quilt Cover Set', qty: 1, price: 35, damaged: false },
+      { sku: 'ANKO-PILLOWCASE', name: 'ANKO Cotton Pillowcase', qty: 2, price: 8, damaged: false }
+    ],
+    events: [
+      { at: 'Sun 18 Oct, 8:40pm', title: 'Order placed', state: 'done' },
+      { at: 'Mon 19 Oct, 7:45am', title: 'Packed — awaiting carrier collection', state: 'current' }
+    ],
+    problem: null,
+    headline: 'Your bedding is packed and awaiting the carrier',
+    summary: 'Packed — awaiting carrier'
+  },
+  {
+    id: 'KM185128',
+    salesOrder: '450254',
+    outboundDelivery: '80004564',
+    freightOrder: '61008916',
+    customer: 'Sofia Ahmed',
+    soldToParty: '1000634',
+    channel: 'Home delivery',
+    address: 'Toowong QLD',
+    promise: 'Tue 20 Oct, by 8pm',
+    node: 'Moorebank fulfilment centre',
+    items: [
+      { sku: 'ANKO-CRATE', name: 'ANKO Foldable Storage Crate', qty: 2, price: 14, damaged: false },
+      { sku: 'ANKO-LAUNDRY', name: 'ANKO Laundry Basket', qty: 1, price: 12, damaged: false }
+    ],
+    events: [
+      { at: 'Sat 17 Oct, 2:25pm', title: 'Order placed', state: 'done' },
+      { at: 'Sun 18 Oct, 10:15am', title: 'Packed at the Moorebank fulfilment centre', state: 'done' },
+      { at: 'Sun 18 Oct, 4:30pm', title: 'Handed to the carrier', state: 'done' },
+      { at: 'Mon 19 Oct, 6:20am', title: 'In transit to the Brisbane delivery depot', state: 'current' }
+    ],
+    problem: null,
+    headline: 'Your storage essentials are on the way',
+    summary: 'In transit'
+  },
+  {
+    id: 'KM185140',
+    salesOrder: '450255',
+    outboundDelivery: '80004565',
+    freightOrder: '61008917',
+    customer: 'Lucas Johnson',
+    soldToParty: '1000645',
+    channel: 'Home delivery',
+    address: 'Fitzroy VIC',
+    promise: 'Sun 18 Oct, by 8pm',
+    node: 'Truganina fulfilment centre',
+    items: [
+      { sku: 'ANKO-PLATE', name: 'ANKO Stoneware Dinner Plate', qty: 4, price: 4.50, damaged: false },
+      { sku: 'ANKO-MUG', name: 'ANKO Ceramic Mug', qty: 2, price: 3, damaged: false }
+    ],
+    events: [
+      { at: 'Fri 16 Oct, 5:05pm', title: 'Order placed', state: 'done' },
+      { at: 'Sat 17 Oct, 9:30am', title: 'Packed at the Truganina fulfilment centre', state: 'done' },
+      { at: 'Sun 18 Oct, 8:10am', title: 'Out for delivery', state: 'done' },
+      { at: 'Sun 18 Oct, 2:18pm', title: 'Delivered to your nominated safe place', state: 'done' }
+    ],
+    problem: null,
+    headline: 'Your dinnerware has been delivered',
+    summary: 'Delivered'
+  },
+  {
+    id: 'KM185152',
+    salesOrder: '450256',
+    outboundDelivery: '80004566',
+    freightOrder: '61008918',
+    customer: 'Charlotte Singh',
+    soldToParty: '1000656',
+    channel: 'Home delivery',
+    address: 'Epping NSW',
+    promise: 'Mon 19 Oct, by 6pm',
+    node: 'Moorebank fulfilment centre',
+    items: [
+      { sku: 'ANKO-TOWEL', name: 'ANKO Bath Towel', qty: 3, price: 16, damaged: true },
+      { sku: 'ANKO-HANDTOWEL', name: 'ANKO Hand Towel', qty: 2, price: 6, damaged: false }
+    ],
+    events: [
+      { at: 'Sat 17 Oct, 11:35am', title: 'Order placed', state: 'done' },
+      { at: 'Sun 18 Oct, 1:20pm', title: 'Packed at the Moorebank fulfilment centre', state: 'done' },
+      { at: 'Mon 19 Oct, 7:55am', title: 'Out for delivery', state: 'done' },
+      { at: 'Mon 19 Oct, 10:35am', title: 'Delivered — one bath towel damaged', state: 'problem' }
+    ],
+    problem: {
+      code: 'DAMAGED',
+      title: 'One of your bath towels arrived damaged',
+      detail: 'One of the three bath towels is torn. The other two bath towels and both hand towels are fine. Only the damaged towel needs a replacement or refund.',
+      foundAt: 'Mon 19 Oct, 10:35am',
+      affectedItems: [{ itemId: 'line-1', qty: 1 }]
+    },
+    headline: 'One of your bath towels arrived damaged',
+    summary: '1 item damaged'
+  },
+  {
+    id: 'KM185164',
+    salesOrder: '450257',
+    outboundDelivery: '80004567',
+    freightOrder: '61008919',
+    customer: 'James Taylor',
+    soldToParty: '1000667',
+    channel: 'Home delivery',
+    address: 'Brunswick VIC',
+    promise: 'Mon 19 Oct, by 8pm',
+    node: 'Truganina fulfilment centre',
+    items: [
+      { sku: 'ANKO-FOODCONT', name: 'ANKO Glass Food Container', qty: 2, price: 9, damaged: false },
+      { sku: 'ANKO-BOTTLE', name: 'ANKO Water Bottle', qty: 2, price: 8, damaged: false },
+      { sku: 'ANKO-LUNCHBAG', name: 'ANKO Lunch Bag', qty: 1, price: 12, damaged: false }
+    ],
+    events: [
+      { at: 'Sat 17 Oct, 4:50pm', title: 'Order placed', state: 'done' },
+      { at: 'Sun 18 Oct, 12:10pm', title: 'Packed at the Truganina fulfilment centre', state: 'done' },
+      { at: 'Mon 19 Oct, 8:25am', title: 'Out for delivery', state: 'done' },
+      { at: 'Mon 19 Oct, 11:20am', title: 'Delivered — one water bottle missing', state: 'problem' }
+    ],
+    problem: {
+      code: 'MISSING',
+      title: 'One water bottle is missing from your order',
+      detail: 'The food containers, lunch bag and one water bottle arrived. The second water bottle is missing. Request a replacement or refund for that one unit; the rest of the order stays unchanged.',
+      foundAt: 'Mon 19 Oct, 11:20am',
+      affectedItems: [{ itemId: 'line-2', qty: 1 }]
+    },
+    headline: 'One water bottle is missing from your order',
+    summary: '1 item missing'
   }
 ];
 

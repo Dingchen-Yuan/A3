@@ -28,8 +28,8 @@ To use a private code, set a different `STAFF_ACCESS_KEY` in your git-ignored `.
 All experiences share the same left navigation: **Delivery Assist → Recovery Management → Mix-Lock → Delivery Tracker → History**. It stays visible above 640px (including the OpenCode preview); phones use the menu button, with Escape/backdrop closing and keyboard focus handling. Delivery Assist remains the main experience.
 
 - **Without a SAP key**, the customer catalogue and staff-managed local workflow still work. SAP write requests remain in sandbox/simulation mode. Supply Hub reads POs from `data/sap_cache.json`.
-- **With a key**, Supply Hub supports live SAP purchase-order reads and refreshes its snapshot. Delivery Assist can also query the sales-order API; the four customer demo timelines remain simulated.
-- **Reset demo** in the buyer sidebar only clears buyer state. Staff-managed customer cases and their audit history cannot be erased by customer reset endpoints.
+- **With a key**, Supply Hub supports live SAP purchase-order reads and refreshes its snapshot. Delivery Assist can also query the sales-order API; the customer demo catalogue and timelines remain simulated.
+- **Reset demo** in the buyer sidebar now resets **all four modules** after an explicit **Reset all demos** confirmation: Mix-Lock, Delivery Tracker, Delivery Assist and Recovery Management. It clears local locks, saved simulated SAP requests, customer problem reports, recovery cases, staff decisions and audit history. SAP snapshots, the staff code and current staff sign-ins are kept. Open pages on the same origin reload to discard stale cases and selections. The reset is blocked in live mode or if saved records contain live SAP writes; it never reverses external transactions. Individual customer reset endpoints still cannot erase staff-managed history.
 
 ## SAP integration
 
@@ -121,6 +121,14 @@ Delivery Assist is the default experience at [http://localhost:3000](http://loca
 | `KM184773` | Lamp delivery attempted, no one home | Request redelivery, a confirmed collection arrangement, or refund |
 | `KM184866` | Bath towel a day past the promise | A delay, then a refund of $16 or a replacement |
 | `KM184920` | Knit throw out for delivery | A healthy order, plus “Something’s wrong” |
+| `KM185104` | Air fryer and tea towels, order confirmed | An order waiting to be packed; $72 total |
+| `KM185116` | Quilt cover set and pillowcases, packed | Awaiting carrier collection; $51 total |
+| `KM185128` | Storage crates and laundry basket, in transit | A multi-item shipment on its way; $40 total |
+| `KM185140` | Dinner plates and mugs, delivered | A completed delivery that can still be reported as damaged/missing; $24 total |
+| `KM185152` | One of three bath towels damaged | Replace/refund **1 towel for $16**, not the $60 order |
+| `KM185164` | One of two water bottles missing | Replace/refund **1 bottle for $8**, not the $46 order |
+
+These ten sample orders use fictional customer details and illustrative document references. They appear automatically under **Track my order**, can be found by order or sales-order number, and remain available after **Reset demo**. No staff decisions or recovery cases are pre-created for the new samples.
 
 A delay finishes as a replacement or a refund. The service request uses `OP_API_SERVICE_REQUEST_SRV_0001`. `API_BILLING_DOCUMENT_REQUEST_SRV` is not used to create a refund. Sales orders are read with `API_SALES_ORDER_SRV`, `$top=5`, `$select` and `$expand=to_Item`, using the same `SAP_API_KEY`. The sandbox root is taken from `SAP_BASE_URL` by dropping the purchase-order path.
 
@@ -170,15 +178,17 @@ Refund/replacement confirmations are prototype outcomes, not actual payments or 
 
 ```bash
 node tests/customerRecovery.test.js
+node tests/customerOrders.test.js
 node tests/customerAmounts.test.js
 node tests/customerSelections.test.js
 node tests/customerAssist.test.js
 node tests/customerTracking.test.js
 node tests/recoveryManagement.test.js
 node tests/staffAccessHint.test.js
+node tests/demoReset.test.js
 node tests/navigation.test.js
 ```
 
-Tests use in-memory state and mocked SAP responses. They cover staff authentication, decision ordering, references/dates, private-note filtering, stale versions, rejection without a financial write, frozen amounts, SAP lookup, partial quantities and read-only customer refresh. Navigation/view tests use a temporary local port. None of these tests resets your saved case history or sends real SAP writes.
+Tests use in-memory state and mocked SAP responses. They cover staff authentication, decision ordering, references/dates, private-note filtering, stale versions, rejection without a financial write, frozen amounts, SAP lookup, partial quantities and read-only customer refresh. The all-module reset test checks explicit confirmation, live-data guards, retained snapshots/sign-ins and earlier in-flight writes. HTTP tests use temporary local ports. None of these tests resets your saved case history or sends real SAP writes.
 
 Process models are in `design/`. The Lab 12 deck is `pitch/Kmart-Delivery-Assist-Lab12.pptx`. UPIs on the last slide still need to be filled in.

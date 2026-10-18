@@ -834,12 +834,24 @@ function initShell() {
   $('.nav a[data-nav="history"]').innerHTML = icon('history') + 'History';
   $('#resetDemo').innerHTML = icon('reset', 'i-sm') + 'Reset demo';
   $('#resetDemo').onclick = async () => {
-    const ok = await confirmDialog({ title: 'Reset the demo?', message: 'This clears all mix locks, recovery cases and saved SAP requests so every line starts fresh. Cached SAP data is kept.', confirmText: 'Reset demo' });
+    const ok = await confirmDialog({ title: 'Reset all demos?', message: 'This clears Mix-Lock locks, inbound recovery cases and saved SAP requests, plus all Delivery Assist reports, customer recoveries, staff decisions and audit history. Open customer and staff pages will reset too. SAP snapshots, access codes and staff sign-ins are kept. This resets local demo data only; it does not reverse external SAP or payment actions.', confirmText: 'Reset all demos' });
     if (!ok) return;
-    try { await api('/api/reset-state', { method: 'POST' }); STATE.adjust = null; STATE.chosenAction = {}; toast('Demo reset'); router(); refreshNavCount(); }
-    catch (e) { toast(e.message, 'err'); }
+    const button = $('#resetDemo');
+    button.disabled = true;
+    try {
+      await api('/api/reset-state', { method: 'POST', body: JSON.stringify({ confirmAll: true }) });
+      if (window.KmartNavigation) window.KmartNavigation.notifyReset();
+      else window.dispatchEvent(new CustomEvent('kmart:demo-reset'));
+    } catch (e) { toast(e.message, 'err'); }
+    finally { button.disabled = false; }
   };
 }
+
+window.addEventListener('kmart:demo-reset', () => {
+  history.replaceState(null, '', location.pathname + location.search + '#/mixlock');
+  // Reload also cancels old views/responses that were in flight during reset.
+  location.reload();
+});
 
 async function init() {
   initShell();
